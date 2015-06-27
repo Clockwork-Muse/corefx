@@ -201,6 +201,7 @@ namespace System.Linq.Parallel.Tests
         {
             foreach (Labeled<Operation> operation in new[] {
                     Label("Distinct", (start, count, s) => s(start, count).Distinct(new FailingEqualityComparer<int>())),
+                    Label("Distinct-Predicate", (start, count, s) => s(start, count).Distinct<int, int>(x=> { throw new DeliberateTestException(); })),
                     Label("GroupBy", (start, count, s) => s(start, count).GroupBy<int, int>(x => {throw new DeliberateTestException(); }).Select(g => g.Key)),
                     Label("GroupBy-Comparer", (start, count, s) => s(start, count).GroupBy(x => x, new FailingEqualityComparer<int>()).Select(g => g.Key)),
                     Label("GroupBy-ElementSelector", (start, count, s) => s(start, count).GroupBy<int, int, int>(x => x, x => { throw new DeliberateTestException(); }).Select(g => g.Key)),

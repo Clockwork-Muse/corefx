@@ -117,6 +117,84 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(DistinctUnorderedData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate_Unordered(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            ParallelQuery<int> query = labeled.Item;
+            IntegerRangeSet seen = new IntegerRangeSet(0, count);
+            foreach (int i in query.Distinct(x => x % count))
+            {
+                seen.Add(i % count);
+            }
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctUnorderedData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_Unordered_Longrunning(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            Distinct_Predicate_Unordered(labeled, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(DistinctData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            ParallelQuery<int> query = labeled.Item;
+            int seen = 0;
+            foreach (int i in query.Distinct(x => x % count))
+            {
+                Assert.Equal(seen++, i % count);
+            }
+            Assert.Equal(count, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_Longrunning(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            Distinct_Predicate(labeled, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(DistinctUnorderedData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate_Unordered_NotPipelined(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            ParallelQuery<int> query = labeled.Item;
+            IntegerRangeSet seen = new IntegerRangeSet(0, count);
+            Assert.All(query.Distinct(x => x % count).ToList(), x => seen.Add(x % count));
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctUnorderedData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_Unordered_NotPipelined_Longrunning(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            Distinct_Predicate_Unordered_NotPipelined(labeled, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(DistinctData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate_NotPipelined(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            ParallelQuery<int> query = labeled.Item;
+            int seen = 0;
+            Assert.All(query.Distinct(x => x % count).ToList(), x => Assert.Equal(seen++, x % count));
+            Assert.Equal(count, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_NotPiplined_Longrunning(Labeled<ParallelQuery<int>> labeled, int count)
+        {
+            Distinct_Predicate_NotPipelined(labeled, count);
+        }
+
+        [Theory]
         [MemberData(nameof(DistinctSourceMultipleData), new[] { 0, 1, 2, 16 })]
         public static void Distinct_Unordered_SourceMultiple(Labeled<ParallelQuery<int>> labeled, int count)
         {
@@ -154,10 +232,46 @@ namespace System.Linq.Parallel.Tests
             Distinct_SourceMultiple(labeled, count);
         }
 
+        [Theory]
+        [MemberData(nameof(DistinctSourceMultipleData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate_Unordered_SourceMultiple(ParallelQuery<int> query, int count)
+        {
+            IntegerRangeSet seen = new IntegerRangeSet(0, count);
+            Assert.All(query.AsUnordered().Distinct(x => x), x => seen.Add(x));
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctSourceMultipleData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_Unordered_SourceMultiple_Longrunning(ParallelQuery<int> query, int count)
+        {
+            Distinct_Predicate_Unordered_SourceMultiple(query, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(DistinctSourceMultipleData), new[] { 0, 1, 2, 16 })]
+        public static void Distinct_Predicate_SourceMultiple(ParallelQuery<int> query, int count)
+        {
+            int seen = 0;
+            Assert.All(query.Distinct(x => x), x => Assert.Equal(seen++, x));
+            Assert.Equal(count, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(DistinctSourceMultipleData), new[] { 1024 * 4, 1024 * 128 })]
+        public static void Distinct_Predicate_SourceMultiple_Longrunning(ParallelQuery<int> query, int count)
+        {
+            Distinct_Predicate_SourceMultiple(query, count);
+        }
+
         [Fact]
         public static void Distinct_ArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>("source", () => ((ParallelQuery<int>)null).Distinct());
+            Assert.Throws<ArgumentNullException>("source", () => ((ParallelQuery<int>)null).Distinct(x => x));
+            Assert.Throws<ArgumentNullException>("predicate", () => ParallelEnumerable.Range(0, 1).Distinct<int, int>(null));
         }
     }
 }

@@ -4495,7 +4495,29 @@ namespace System.Linq
         }
 
         /// <summary>
-        /// Returns distinct elements from a parallel sequence by using a specified 
+        /// Returns distinct elements from a parallel sequence by using a specified predicate
+        /// to extract the key value.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the elements of <paramref name="source"/>.</typeparam>        ///
+        /// <typeparam name="TKey">The type of the extracted key <paramref name="predicate"/>.</typeparam>
+        /// <param name="source">The sequence to remove duplicate elements from.</param>
+        /// <param name="predicate">A predicate returning a key.</param>
+        /// <returns>A sequence that contains distinct elements from the source sequence, when comparing keys.</returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="source"/> is a null reference (Nothing in Visual Basic).
+        /// <paramref name="predicate"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        public static ParallelQuery<TSource> Distinct<TSource, TKey>(
+            this ParallelQuery<TSource> source, Func<TSource, TKey> predicate)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (predicate == null) throw new ArgumentNullException("predicate");
+
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Returns distinct elements from a parallel sequence by using a specified
         /// IEqualityComparer{T} to compare values.
         /// </summary>
         /// <typeparam name="TSource">The type of the elements of <paramref name="source"/>.</typeparam>
