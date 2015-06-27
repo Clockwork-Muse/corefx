@@ -371,6 +371,58 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(UnionUnorderedData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Union_Predicate_Unordered_Distinct(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor, leftCount);
+            rightCount = Math.Min(DuplicateFactor, rightCount);
+            int offset = leftCount - Math.Min(leftCount, rightCount) / 2;
+            int expectedCount = Math.Max(leftCount, rightCount) + (Math.Min(leftCount, rightCount) + 1) / 2;
+            IntegerRangeSet seen = new IntegerRangeSet(0, expectedCount);
+            foreach (int i in leftQuery.Select(x => x % DuplicateFactor).Union(rightQuery.Select(x => (x - leftCount) % DuplicateFactor + offset), x => x % (DuplicateFactor + DuplicateFactor / 2)))
+            {
+                seen.Add(i);
+            }
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(UnionUnorderedData), new[] { 512, 1024 * 8 }, new[] { 0, 1, 1024, 1024 * 16 })]
+        public static void Union_Predicate_Unordered_Distinct_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount)
+        {
+            Union_Predicate_Unordered_Distinct(left, leftCount, right, rightCount);
+        }
+
+        [Theory]
+        [MemberData(nameof(UnionData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Union_Predicate_Distinct(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor, leftCount);
+            rightCount = Math.Min(DuplicateFactor, rightCount);
+            int offset = leftCount - Math.Min(leftCount, rightCount) / 2;
+            int expectedCount = Math.Max(leftCount, rightCount) + (Math.Min(leftCount, rightCount) + 1) / 2;
+            int seen = 0;
+            foreach (int i in leftQuery.Select(x => x % DuplicateFactor).Union(rightQuery.Select(x => (x - leftCount) % DuplicateFactor + offset), x => x % (DuplicateFactor + DuplicateFactor / 2)))
+            {
+                Assert.Equal(seen++, i);
+            }
+            Assert.Equal(expectedCount, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(UnionData), new[] { 512, 1024 * 8 }, new[] { 0, 1, 1024, 1024 * 16 })]
+        public static void Union_Predicate_Distinct_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount)
+        {
+            Union_Predicate_Distinct(left, leftCount, right, rightCount);
+        }
+
+        [Theory]
         [MemberData(nameof(UnionSourceMultipleData), new[] { 0, 1, 2, DuplicateFactor * 2 })]
         public static void Union_Unordered_SourceMultiple(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int count)
         {
@@ -414,6 +466,7 @@ namespace System.Linq.Parallel.Tests
 #pragma warning disable 618
             Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Union(Enumerable.Range(0, 1)));
             Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Union(Enumerable.Range(0, 1), null));
+            Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Union<int, int>(Enumerable.Range(0, 1), null));
 #pragma warning restore 618
         }
 
@@ -436,6 +489,7 @@ namespace System.Linq.Parallel.Tests
 
             Assert.Throws<ArgumentNullException>("first", () => ((ParallelQuery<int>)null).Union(ParallelEnumerable.Range(0, 1), EqualityComparer<int>.Default));
             Assert.Throws<ArgumentNullException>("second", () => ParallelEnumerable.Range(0, 1).Union(null, EqualityComparer<int>.Default));
+            Assert.Throws<ArgumentNullException>("predicate", () => ParallelEnumerable.Range(0, 1).Union<int, int>(ParallelEnumerable.Range(0, 1), null));
         }
     }
 }

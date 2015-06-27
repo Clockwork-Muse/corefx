@@ -273,6 +273,8 @@ namespace System.Linq.Parallel.Tests
 
             yield return Label("Union-Right:" + label, (start, count, source) => source(start, count * 3 / 4).Union(other(start + count / 2, count / 2 + count % 2), new ModularCongruenceComparer(count)));
             yield return Label("Union-Left:" + label, (start, count, source) => other(start, count * 3 / 4).Union(source(start + count / 2, count / 2 + count % 2), new ModularCongruenceComparer(count)));
+            yield return Label("Union-Right:" + label, (start, count, source) => source(start, count * 3 / 4).Union(other(start + count / 2, count / 2 + count % 2), x => x % (count * 2)));
+            yield return Label("Union-Left:" + label, (start, count, source) => other(start, count * 3 / 4).Union(source(start + count / 2, count / 2 + count % 2), x => x % (count * 2)));
 
             // When both sources are unordered any element can be matched to any other, so a different check is required.
             yield return Label("Zip-Unordered-Right:" + label, (start, count, source) => source(0, count).Zip(other(start * 2, count), (x, y) => x + start));
@@ -353,6 +355,7 @@ namespace System.Linq.Parallel.Tests
                      Label("Intersect-Predicate-Fail", (start, count, s) => s(start, count).Intersect<int, int>(DefaultSource(start, count),x=> { throw new DeliberateTestException(); } )),
                      Label("Join-Fail", (start, count, s) => s(start, count).Join(DefaultSource(start, count), x => x, y => y, (x, y) => x, new FailingEqualityComparer<int>())),
                      Label("Union-Fail", (start, count, s) => s(start, count).Union(DefaultSource(start, count), new FailingEqualityComparer<int>())),
+                     Label("Union-Predicate-Fail", (start, count, s) => s(start, count).Union<int, int>(DefaultSource(start, count),x=> { throw new DeliberateTestException(); } )),
                      Label("Zip-Fail", (start, count, s) => s(start, count).Zip<int, int, int>(DefaultSource(start, count), (x, y) => { throw new DeliberateTestException(); })),
                 })
             {

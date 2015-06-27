@@ -4556,7 +4556,31 @@ namespace System.Linq
         }
 
         /// <summary>
-        /// This Union overload should never be called. 
+        /// This Union overload should never be called.
+        /// This method is marked as obsolete and always throws <see cref="System.NotSupportedException"/> when called.
+        /// </summary>
+        /// <typeparam name="TSource">This type parameter is not used.</typeparam>
+        /// <typeparam name="TKey">This type parameter is not used.</typeparam>
+        /// <param name="first">This parameter is not used.</param>
+        /// <param name="second">This parameter is not used.</param>
+        /// <param name="third">This parameter is not used.</param>
+        /// <returns>This overload always throws a <see cref="System.NotSupportedException"/>.</returns>
+        /// <exception cref="T:System.NotSupportedException">The exception that occurs when this method is called.</exception>
+        /// <remarks>
+        /// This overload exists to disallow usage of Union with a left data source of type
+        /// <see cref="System.Linq.ParallelQuery{TSource}"/> and a right data source of type <see cref="System.Collections.Generic.IEnumerable{TSource}"/>.
+        /// Otherwise, the Union operator would appear to be binding to the parallel implementation,
+        /// but would in reality bind to sequential implementation.
+        /// </remarks>
+        [Obsolete(RIGHT_SOURCE_NOT_PARALLEL_STR)]
+        public static ParallelQuery<TSource> Union<TSource, TKey>(
+            this ParallelQuery<TSource> first, IEnumerable<TSource> second, Func<TSource, TKey> third)
+        {
+            throw new NotSupportedException(SR.ParallelEnumerable_BinaryOpMustUseAsParallel);
+        }
+
+        /// <summary>
+        /// This Union overload should never be called.
         /// This method is marked as obsolete and always throws <see cref="System.NotSupportedException"/> when called.
         /// </summary>
         /// <typeparam name="TSource">This type parameter is not used.</typeparam>
@@ -4575,6 +4599,28 @@ namespace System.Linq
             this ParallelQuery<TSource> first, IEnumerable<TSource> second)
         {
             throw new NotSupportedException(SR.ParallelEnumerable_BinaryOpMustUseAsParallel);
+        }
+
+        /// <summary>
+        /// Produces the set union of two parallel sequences by using a specified IEquatable{T} key.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the elements of the input sequences.</typeparam>
+        /// <typeparam name="TKey">The type of the key.</typeparam>
+        /// <param name="first">A sequence whose distinct elements form the first set for the union.</param>
+        /// <param name="second">A sequence whose distinct elements form the second set for the union.</param>
+        /// <param name="predicate">A predicate returning a key.</param>
+        /// <returns>A sequence that contains the elements from both input sequences, excluding duplicates.</returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="first"/> or <paramref name="second"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        public static ParallelQuery<TSource> Union<TSource, TKey>(
+            this ParallelQuery<TSource> first, ParallelQuery<TSource> second, Func<TSource, TKey> predicate)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            if (predicate == null) throw new ArgumentNullException("predicate");
+
+            throw new NotImplementedException();
         }
 
         /// <summary>
