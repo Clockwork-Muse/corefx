@@ -265,6 +265,8 @@ namespace System.Linq.Parallel.Tests
             // Comparator needs to cover _source_ size, as which of two "equal" items is returned is undefined.
             yield return Label("Intersect-Right:" + label, (start, count, source) => source(start, count + count / 2).Intersect(other(start - count / 2, count + count / 2), new ModularCongruenceComparer(count * 2)));
             yield return Label("Intersect-Left:" + label, (start, count, source) => other(start, count + count / 2).Intersect(source(start - count / 2, count + count / 2), new ModularCongruenceComparer(count * 2)));
+            yield return Label("Intersect-Predicate-Right:" + label, (start, count, source) => source(start, count + count / 2).Intersect(other(start - count / 2, count + count / 2), x => x % (count * 2)));
+            yield return Label("Intersect-Predicate-Left:" + label, (start, count, source) => other(start, count + count / 2).Intersect(source(start - count / 2, count + count / 2), x => x % (count * 2)));
 
             yield return Label("Join-Right:" + label, (start, count, source) => source(0, count).Join(other(start, count), x => x, y => y - start, (x, y) => x + start, new ModularCongruenceComparer(count)));
             yield return Label("Join-Left:" + label, (start, count, source) => other(0, count).Join(source(start, count), x => x, y => y - start, (x, y) => x + start, new ModularCongruenceComparer(count)));
@@ -348,6 +350,7 @@ namespace System.Linq.Parallel.Tests
                      Label("Except-Predicate-Fail", (start, count, s) => s(start, count).Except<int, int>(DefaultSource(start, count), x=> { throw new DeliberateTestException(); } )),
                      Label("GroupJoin-Fail", (start, count, s) => s(start, count).GroupJoin(DefaultSource(start, count), x => x, y => y, (x, g) => x, new FailingEqualityComparer<int>())),
                      Label("Intersect-Fail", (start, count, s) => s(start, count).Intersect(DefaultSource(start, count), new FailingEqualityComparer<int>())),
+                     Label("Intersect-Predicate-Fail", (start, count, s) => s(start, count).Intersect<int, int>(DefaultSource(start, count),x=> { throw new DeliberateTestException(); } )),
                      Label("Join-Fail", (start, count, s) => s(start, count).Join(DefaultSource(start, count), x => x, y => y, (x, y) => x, new FailingEqualityComparer<int>())),
                      Label("Union-Fail", (start, count, s) => s(start, count).Union(DefaultSource(start, count), new FailingEqualityComparer<int>())),
                      Label("Zip-Fail", (start, count, s) => s(start, count).Zip<int, int, int>(DefaultSource(start, count), (x, y) => { throw new DeliberateTestException(); })),
