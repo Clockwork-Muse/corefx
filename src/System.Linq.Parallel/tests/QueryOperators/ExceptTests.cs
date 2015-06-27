@@ -236,6 +236,102 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(ExceptUnorderedData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Except_Predicate_Unordered_Distinct(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor * 2, leftCount);
+            rightCount = Math.Min(DuplicateFactor, (rightCount + 1) / 2);
+            int expectedCount = Math.Max(0, leftCount - rightCount);
+            IntegerRangeSet seen = new IntegerRangeSet(leftCount - expectedCount, expectedCount);
+            foreach (int i in leftQuery.Except(rightQuery.Select(x => Math.Abs(x) % DuplicateFactor), x => x % (DuplicateFactor * 2)))
+            {
+                seen.Add(i % (DuplicateFactor * 2));
+            }
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptUnorderedData), new[] { 1024, 1024 * 16 }, new[] { 0, 1024, 1024 * 32 })]
+        public static void Except_Predicate_Unordered_Distinct_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            Except_Predicate_Unordered_Distinct(left, leftCount, right, rightCount, start, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(ExceptData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Except_Predicate_Distinct(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor * 2, leftCount);
+            rightCount = Math.Min(DuplicateFactor, (rightCount + 1) / 2);
+            int expectedCount = Math.Max(0, leftCount - rightCount);
+            int seen = expectedCount == 0 ? 0 : leftCount - expectedCount;
+            foreach (int i in leftQuery.Except(rightQuery.Select(x => Math.Abs(x) % DuplicateFactor), x => x % (DuplicateFactor * 2)))
+            {
+                Assert.Equal(seen++, i);
+            }
+            Assert.Equal(expectedCount == 0 ? 0 : leftCount, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptData), new[] { 1024, 1024 * 16 }, new[] { 0, 1024, 1024 * 32 })]
+        public static void Except_Predicate_Distinct_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            Except_Predicate_Distinct(left, leftCount, right, rightCount, start, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(ExceptUnorderedData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Except_Predicate_Unordered_Distinct_NotPipelined(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor * 2, leftCount);
+            rightCount = Math.Min(DuplicateFactor, (rightCount + 1) / 2);
+            int expectedCount = Math.Max(0, leftCount - rightCount);
+            IntegerRangeSet seen = new IntegerRangeSet(leftCount - expectedCount, expectedCount);
+            Assert.All(leftQuery.Except(rightQuery.Select(x => Math.Abs(x) % DuplicateFactor),
+                x => x % (DuplicateFactor * 2)).ToList(), x => seen.Add(x % (DuplicateFactor * 2)));
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptUnorderedData), new[] { 1024, 1024 * 16 }, new[] { 0, 1024, 1024 * 32 })]
+        public static void Except_Predicate_Unordered_Distinct_NotPipelined_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            Except_Predicate_Unordered_Distinct_NotPipelined(left, leftCount, right, rightCount, start, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(ExceptData), new[] { 0, 1, 2, 16 }, new[] { 0, 1, 8 })]
+        public static void Except_Predicate_Distinct_NotPipelined(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            ParallelQuery<int> leftQuery = left.Item;
+            ParallelQuery<int> rightQuery = right.Item;
+            leftCount = Math.Min(DuplicateFactor * 2, leftCount);
+            rightCount = Math.Min(DuplicateFactor, (rightCount + 1) / 2);
+            int expectedCount = Math.Max(0, leftCount - rightCount);
+            int seen = expectedCount == 0 ? 0 : leftCount - expectedCount;
+            Assert.All(leftQuery.Except(rightQuery.Select(x => Math.Abs(x) % DuplicateFactor),
+               x => x % (DuplicateFactor * 2)).ToList(), x => Assert.Equal(seen++, x));
+            Assert.Equal(expectedCount == 0 ? 0 : leftCount, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptData), new[] { 1024, 1024 * 16 }, new[] { 0, 1024, 1024 * 32 })]
+        public static void Except_Predicate_Distinct_NotPipelined_Longrunning(Labeled<ParallelQuery<int>> left, int leftCount, Labeled<ParallelQuery<int>> right, int rightCount, int start, int count)
+        {
+            Except_Predicate_Distinct_NotPipelined(left, leftCount, right, rightCount, start, count);
+        }
+
+        [Theory]
         [MemberData(nameof(ExceptSourceMultipleData), new[] { 0, 1, 2, 16 })]
         public static void Except_Unordered_SourceMultiple(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int start, int count)
         {
@@ -273,12 +369,47 @@ namespace System.Linq.Parallel.Tests
             Except_SourceMultiple(leftQuery, leftCount, rightQuery, rightCount, start, count);
         }
 
+        [Theory]
+        [MemberData(nameof(ExceptSourceMultipleData), new[] { 0, 1, 2, 16 })]
+        public static void Except_Predicate_Unordered_SourceMultiple(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int start, int count)
+        {
+            IntegerRangeSet seen = new IntegerRangeSet(start, count);
+            Assert.All(leftQuery.AsUnordered().Except(rightQuery, x => x), x => seen.Add(x));
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptSourceMultipleData), new[] { 1024, 1024 * 16 })]
+        public static void Except_Predicate_Unordered_SourceMultiple_Longrunning(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int start, int count)
+        {
+            Except_Predicate_Unordered_SourceMultiple(leftQuery, leftCount, rightQuery, rightCount, start, count);
+        }
+
+        [Theory]
+        [MemberData(nameof(ExceptSourceMultipleData), new[] { 0, 1, 2, 16 })]
+        public static void Except_Predicate_SourceMultiple(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int start, int count)
+        {
+            int seen = start;
+            Assert.All(leftQuery.Except(rightQuery, x => x), x => Assert.Equal(seen++, x));
+            Assert.Equal(start + count, seen);
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData(nameof(ExceptSourceMultipleData), new[] { 1024, 1024 * 16 })]
+        public static void Except_Predicate_SourceMultiple_Longrunning(ParallelQuery<int> leftQuery, int leftCount, ParallelQuery<int> rightQuery, int rightCount, int start, int count)
+        {
+            Except_Predicate_SourceMultiple(leftQuery, leftCount, rightQuery, rightCount, start, count);
+        }
+
         [Fact]
         public static void Except_NotSupportedException()
         {
 #pragma warning disable 618
             Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Except(Enumerable.Range(0, 1)));
             Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Except(Enumerable.Range(0, 1), null));
+            Assert.Throws<NotSupportedException>(() => ParallelEnumerable.Range(0, 1).Except(Enumerable.Range(0, 1), x => x));
 #pragma warning restore 618
         }
 
@@ -301,6 +432,7 @@ namespace System.Linq.Parallel.Tests
 
             Assert.Throws<ArgumentNullException>("first", () => ((ParallelQuery<int>)null).Except(ParallelEnumerable.Range(0, 1), EqualityComparer<int>.Default));
             Assert.Throws<ArgumentNullException>("second", () => ParallelEnumerable.Range(0, 1).Except(null, EqualityComparer<int>.Default));
+            Assert.Throws<ArgumentNullException>("predicate", () => ParallelEnumerable.Range(0, 1).Except<int, int>(ParallelEnumerable.Range(0, 1), null));
         }
     }
 }

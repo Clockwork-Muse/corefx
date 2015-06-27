@@ -4765,7 +4765,57 @@ namespace System.Linq
         }
 
         /// <summary>
-        /// Produces the set difference of two parallel sequences by using the 
+        /// This Except overload should never be called.
+        /// This method is marked as obsolete and always throws <see cref="System.NotSupportedException"/> when called.
+        /// </summary>
+        /// <typeparam name="TSource">This type parameter is not used.</typeparam>
+        /// <typeparam name="TKey">This type parameter is not used.</typeparam>
+        /// <param name="first">This parameter is not used.</param>
+        /// <param name="second">This parameter is not used.</param>
+        /// <param name="third">This parameter is not used.</param>
+        /// <returns>This overload always throws a <see cref="System.NotSupportedException"/>.</returns>
+        /// <exception cref="T:System.NotSupportedException">The exception that occurs when this method is called.</exception>
+        /// <remarks>
+        /// This overload exists to disallow usage of Except with a left data source of type
+        /// <see cref="System.Linq.ParallelQuery{TSource}"/> and a right data source of type <see cref="System.Collections.Generic.IEnumerable{TSource}"/>.
+        /// Otherwise, the Except operator would appear to be binding to the parallel implementation,
+        /// but would in reality bind to the sequential implementation.
+        /// </remarks>
+        [Obsolete(RIGHT_SOURCE_NOT_PARALLEL_STR)]
+        public static ParallelQuery<TSource> Except<TSource, TKey>(
+            this ParallelQuery<TSource> first, IEnumerable<TSource> second, Func<TSource, TKey> third)
+        {
+            throw new NotSupportedException(SR.ParallelEnumerable_BinaryOpMustUseAsParallel);
+        }
+
+        /// <summary>
+        /// Produces the set difference of two parallel sequences by using the
+        /// specified IEquatable{T} to compare keys.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the elements of the input sequences.</typeparam>
+        /// <typeparam name="TKey">The type of the extracted keys.</typeparam>
+        /// <param name="first">A sequence whose elements that are not also in <paramref name="second"/> will be returned.</param>
+        /// <param name="second">
+        /// A sequence whose elements that also occur in the first sequence will cause those elements
+        /// to be removed from the returned sequence.
+        /// </param>
+        /// <param name="predicate">A predicate returning a key.</param>
+        /// <returns>A sequence that contains the set difference of the elements of two sequences as keyed by the predicate.</returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="first"/> or <paramref name="second"/> or <paramref name="predicate"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        public static ParallelQuery<TSource> Except<TSource, TKey>(
+            this ParallelQuery<TSource> first, ParallelQuery<TSource> second, Func<TSource, TKey> predicate)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            if (predicate == null) throw new ArgumentNullException("predicate");
+
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Produces the set difference of two parallel sequences by using the
         /// specified IEqualityComparer{T} to compare values.
         /// </summary>
         /// <typeparam name="TSource">The type of the elements of the input sequences.</typeparam>
