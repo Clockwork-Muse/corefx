@@ -76,13 +76,18 @@ namespace System.Linq.Parallel.Tests
         }
     }
 
-    internal class ReverseComparer : IComparer<int>
+    internal static class ReverseComparer
     {
-        public static readonly ReverseComparer Instance = new ReverseComparer();
+        public static readonly ReverseComparer<int> Instance = new ReverseComparer<int>();
+    }
 
-        public int Compare(int x, int y)
+    internal class ReverseComparer<T> : IComparer<T>
+    {
+        private IComparer<T> _def = Comparer<T>.Default;
+
+        public int Compare(T x, T y)
         {
-            return y.CompareTo(x);
+            return _def.Compare(y, x);
         }
     }
 
@@ -130,13 +135,13 @@ namespace System.Linq.Parallel.Tests
 
     internal static class DelgatedComparable
     {
-        public static DelegatedComparable<T> Delegate<T>(T value, IComparer<T> comparer) where T : IComparable<T>
+        public static DelegatedComparable<T> Delegate<T>(T value, IComparer<T> comparer)
         {
             return new DelegatedComparable<T>(value, comparer);
         }
     }
 
-    internal class DelegatedComparable<T> : IComparable<DelegatedComparable<T>> where T : IComparable<T>
+    internal class DelegatedComparable<T> : IComparable<DelegatedComparable<T>>
     {
         private T _value;
         private IComparer<T> _comparer;
@@ -157,7 +162,7 @@ namespace System.Linq.Parallel.Tests
 
         public int CompareTo(DelegatedComparable<T> other)
         {
-            return _comparer.Compare(Value, other.Value);
+            return _comparer.Compare(Value, other == null ? default(T) : other.Value);
         }
     }
 
