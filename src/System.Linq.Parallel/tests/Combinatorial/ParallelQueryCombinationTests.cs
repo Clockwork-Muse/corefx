@@ -643,6 +643,14 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(UnaryFailingOperators))]
+        [MemberData(nameof(BinaryFailingOperators))]
+        public static void MaxBy_AggregateException(LabeledOperation source, LabeledOperation operation)
+        {
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => operation.Item(DefaultStart, DefaultSize, source.Item).MaxBy(x => x));
+        }
+
+        [Theory]
         [MemberData(nameof(UnaryOperations))]
         [MemberData(nameof(BinaryOperations))]
         public static void LongCount_Predicate_None(Labeled<Operation> operation)

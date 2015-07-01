@@ -58,6 +58,7 @@
     <Compile Include="QueryOperators\IntersectTests.cs" />
     <Compile Include="QueryOperators\JoinTests.cs" />
     <Compile Include="QueryOperators\LastLastOrDefaultTests.cs" />
+    <Compile Include="QueryOperators\MaxByTests.cs" />
     <Compile Include="QueryOperators\MaxTests.cs" />
     <Compile Include="QueryOperators\MinTests.cs" />
     <Compile Include="QueryOperators\OfTypeTests.cs" />

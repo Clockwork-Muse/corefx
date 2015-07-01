@@ -3478,6 +3478,64 @@ namespace System.Linq
         }
 
         //-----------------------------------------------------------------------------------
+        // MaxBy retrieves the maximum element as compared with the given key.
+        //
+
+        /// <summary>
+        /// Examines in parallel the elements of a sequence, and retrieves the maximum value according to a key.
+        /// </summary>
+        /// <remarks>
+        /// In contrast to the sequential implementation, this does not return a stable result.
+        /// See the remarks for MaxBy(ParallelQuery{TSource}, Func{TSource,TKey}, IComparer{TKey}) for
+        /// an approach to retrieving a stable result.
+        /// </remarks>
+        /// <typeparam name="TSource">The type of elements of <paramref name="source"/>.</typeparam>
+        /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector"/>.</typeparam>
+        /// <param name="source">A sequence of values to order.</param>
+        /// <param name="keySelector">A function to extract a key from an element.</param>
+        /// <returns>The maximum value of the sequence, as ordered by the extracted key.</returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="source"/> or <paramref name="keySelector"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        public static TSource MaxBy<TSource, TKey>(
+            this ParallelQuery<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (keySelector == null) throw new ArgumentNullException("keySelector");
+
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Examines in parallel the elements of a sequence, and retrieves the maximum value according to a key.
+        /// </summary>
+        /// <remarks>
+        /// In contrast to the sequential implementation, this does not return a stable result.
+        /// To achieve a stable result, change a query of the form:
+        /// <code>var ordered = source.MaxBy((e) => e.k);</code>
+        /// to instead be formed as:
+        /// <code>var ordered = source.Select((e,i) => new KeyValuePair{E, int}(e, i)).MaxBy(kv => kv, customComparer).e;</code>,
+        /// where <code>customComparer</code> is an <code>IComparer{TKey}</code> that will also compare indices.
+        /// </remarks>
+        /// <typeparam name="TSource">The type of elements of <paramref name="source"/>.</typeparam>
+        /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector"/>.</typeparam>
+        /// <param name="source">A sequence of values to order.</param>
+        /// <param name="keySelector">A function to extract a key from an element.</param>
+        /// <param name="comparer">An IComparer{TKey} to compare keys.</param>
+        /// <returns>The maximum value of the sequence, as ordered by the extracted key.</returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="source"/> or <paramref name="keySelector"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        public static TSource MaxBy<TSource, TKey>(
+            this ParallelQuery<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (keySelector == null) throw new ArgumentNullException("keySelector");
+
+            throw new NotImplementedException();
+        }
+
+        //-----------------------------------------------------------------------------------
         // Average aggregations.
         //
 

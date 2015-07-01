@@ -211,6 +211,14 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(UnaryOperators))]
+        [MemberData(nameof(BinaryOperators))]
+        public static void MaxBy(LabeledOperation source, LabeledOperation operation)
+        {
+            Assert.Equal(DefaultStart + DefaultSize - 1, operation.Item(DefaultStart, DefaultSize, source.Item).MaxBy(x => x));
+        }
+
+        [Theory]
         [MemberData(nameof(UnaryFailingOperators))]
         [MemberData(nameof(BinaryFailingOperators))]
         public static void Min_AggregateException(Labeled<Operation> source, Labeled<Operation> operation)
