@@ -693,6 +693,14 @@ namespace System.Linq.Parallel.Tests
         [Theory]
         [MemberData(nameof(UnaryOperators))]
         [MemberData(nameof(BinaryOperators))]
+        public static void MinBy(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            Assert.Equal(DefaultStart + DefaultSize - 1, operation.Item(DefaultStart, DefaultSize, source.Item).MinBy(x => x));
+        }
+
+        [Theory]
+        [MemberData(nameof(UnaryOperators))]
+        [MemberData(nameof(BinaryOperators))]
         public static void OfType(Labeled<Operation> source, Labeled<Operation> operation)
         {
             int seen = DefaultStart;

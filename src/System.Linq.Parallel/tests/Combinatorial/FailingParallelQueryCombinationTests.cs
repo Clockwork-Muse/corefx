@@ -229,6 +229,14 @@ namespace System.Linq.Parallel.Tests
         [Theory]
         [MemberData(nameof(UnaryFailingOperators))]
         [MemberData(nameof(BinaryFailingOperators))]
+        public static void MinBy_AggregateException(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => operation.Item(DefaultStart, DefaultSize, source.Item).MinBy(x => x));
+        }
+
+        [Theory]
+        [MemberData(nameof(UnaryFailingOperators))]
+        [MemberData(nameof(BinaryFailingOperators))]
         [MemberData(nameof(OrderFailingOperators))]
         public static void SequenceEqual_AggregateException(Labeled<Operation> source, Labeled<Operation> operation)
         {

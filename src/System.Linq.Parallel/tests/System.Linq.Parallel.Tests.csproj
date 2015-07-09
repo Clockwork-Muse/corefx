@@ -60,6 +60,7 @@
     <Compile Include="QueryOperators\LastLastOrDefaultTests.cs" />
     <Compile Include="QueryOperators\MaxByTests.cs" />
     <Compile Include="QueryOperators\MaxTests.cs" />
+    <Compile Include="QueryOperators\MinByTests.cs" />
     <Compile Include="QueryOperators\MinTests.cs" />
     <Compile Include="QueryOperators\OfTypeTests.cs" />
     <Compile Include="QueryOperators\OrderByThenByTests.cs" />

@@ -568,6 +568,17 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(UnaryOperators))]
+        [MemberData(nameof(BinaryOperators))]
+        public static void MinBy_OperationCanceledException_PreCanceled(LabeledOperation source, LabeledOperation operation)
+        {
+            CancellationTokenSource cs = new CancellationTokenSource();
+            cs.Cancel();
+
+            Functions.AssertIsCanceled(cs, () => operation.Item(DefaultStart, DefaultSize, (start, count, ignore) => source.Item(start, count).WithCancellation(cs.Token)).MinBy(x => x));
+        }
+
+        [Theory]
         [MemberData(nameof(UnaryCancelingOperators))]
         [MemberData(nameof(BinaryCancelingOperators))]
         public static void Min_AggregateException_Wraps_OperationCanceledException(Labeled<Func<ParallelQuery<int>, Action, ParallelQuery<int>>> operation)
