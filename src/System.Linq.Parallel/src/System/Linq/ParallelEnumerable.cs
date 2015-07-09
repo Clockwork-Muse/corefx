@@ -1308,6 +1308,35 @@ namespace System.Linq
         }
 
         //-----------------------------------------------------------------------------------
+        // A Chunk operation collects a specified set of elements, yielding multiple enumerables.
+        //
+
+        /// <summary>
+        /// Chunks in parallel the elements of a sequence.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the elements of <paramref name="source"/>.</typeparam>
+        /// <param name="source">A sequence whose elements to chunk.</param>
+        /// <param name="size">The size of each chunk.</param>
+        /// <returns>A collection of enumerables of {TSource} elements, containing {size} elements or fewer. </returns>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name="source"/>
+        /// is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        /// /// <exception cref="T:System.ArgumentException">
+        /// <paramref name="size"/>
+        /// is less than or equal to 0.
+        /// </exception>
+        public static ParallelQuery<ParallelQuery<TSource>> Chunk<TSource>(
+            this ParallelQuery<TSource> source, int size)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            // Need resource entry
+            if (size <= 0) throw new ArgumentException(null, "size");
+
+            throw new NotImplementedException();
+        }
+
+        //-----------------------------------------------------------------------------------
         // A GroupBy operation groups inputs based on a key-selection routine, yielding a
         // one-to-many value of key-to-elements to the consumer.
         //

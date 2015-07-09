@@ -34,6 +34,44 @@ namespace System.Linq.Parallel.Tests
         }
 
         [Theory]
+        [MemberData(nameof(UnaryUnorderedOperators))]
+        [MemberData(nameof(BinaryUnorderedOperators))]
+        public static void Chunk_Unordered(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            IntegerRangeSet seen = new IntegerRangeSet(DefaultStart, DefaultSize);
+            foreach (ParallelQuery<int> chunk in operation.Item(DefaultStart, DefaultSize, source.Item).Chunk(GroupFactor))
+            {
+                int elements = 0;
+                foreach (int i in chunk)
+                {
+                    seen.Add(i);
+                    elements++;
+                }
+                Assert.InRange(elements, 0, GroupFactor);
+            }
+            seen.AssertComplete();
+        }
+
+        [Theory]
+        [MemberData(nameof(UnaryUnorderedOperators))]
+        [MemberData(nameof(BinaryUnorderedOperators))]
+        public static void Chunk_Unordered_NotPipelined(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            IntegerRangeSet seen = new IntegerRangeSet(DefaultStart, DefaultSize);
+            foreach (ParallelQuery<int> chunk in operation.Item(DefaultStart, DefaultSize, source.Item).Chunk(GroupFactor).ToList())
+            {
+                int elements = 0;
+                foreach (int i in chunk.ToList())
+                {
+                    seen.Add(i);
+                    elements++;
+                }
+                Assert.InRange(elements, 0, GroupFactor);
+            }
+            seen.AssertComplete();
+        }
+
+        [Theory]
         [MemberData(nameof(UnaryOperations))]
         [MemberData(nameof(BinaryOperations))]
         public static void Concat_Unordered(Labeled<Operation> operation)

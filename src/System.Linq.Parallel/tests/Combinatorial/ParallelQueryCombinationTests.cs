@@ -135,6 +135,44 @@ namespace System.Linq.Parallel.Tests
         [Theory]
         [MemberData(nameof(UnaryOperators))]
         [MemberData(nameof(BinaryOperators))]
+        public static void Chunk(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            int seen = 0;
+            int chunks = 0;
+            foreach (ParallelQuery<int> chunk in operation.Item(DefaultStart, DefaultSize, source.Item).Chunk(GroupFactor))
+            {
+                chunks++;
+                foreach (int i in chunk)
+                {
+                    Assert.Equal(seen++, i);
+                }
+                Assert.Equal(Math.Min(chunks * GroupFactor, DefaultSize), seen);
+            }
+            Assert.Equal((DefaultSize + GroupFactor - 1) / GroupFactor, chunks);
+        }
+
+        [Theory]
+        [MemberData(nameof(UnaryOperators))]
+        [MemberData(nameof(BinaryOperators))]
+        public static void Chunk_NotPipelined(Labeled<Operation> source, Labeled<Operation> operation)
+        {
+            int seen = 0;
+            int chunks = 0;
+            foreach (ParallelQuery<int> chunk in operation.Item(DefaultStart, DefaultSize, source.Item).Chunk(GroupFactor).ToList())
+            {
+                chunks++;
+                foreach (int i in chunk.ToList())
+                {
+                    Assert.Equal(seen++, i);
+                }
+                Assert.Equal(Math.Min(chunks * GroupFactor, DefaultSize), seen);
+            }
+            Assert.Equal((DefaultSize + GroupFactor - 1) / GroupFactor, chunks);
+        }
+
+        [Theory]
+        [MemberData(nameof(UnaryOperators))]
+        [MemberData(nameof(BinaryOperators))]
         public static void Concat(Labeled<Operation> source, Labeled<Operation> operation)
         {
             Action<Operation, Operation> concat = (left, right) =>

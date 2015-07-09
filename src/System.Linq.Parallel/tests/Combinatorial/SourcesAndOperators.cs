@@ -98,6 +98,8 @@ namespace System.Linq.Parallel.Tests
         public static IEnumerable<object[]> UnaryOperations()
         {
             yield return new object[] { Label("Cast", (start, count, source) => source(start, count).Cast<int>()) };
+            // Use SelectMany to de-Chunk chunk.
+            yield return new object[] { Label("Chunk", (start, count, source) => source(start, count).Chunk(GroupFactor).SelectMany(x => x)) };
             yield return new object[] { Label("DefaultIfEmpty", (start, count, source) => source(start, count).DefaultIfEmpty()) };
             yield return new object[] { Label("Distinct", (start, count, source) => source(start * 2, count * 2).Select(x => x / 2).Distinct(new ModularCongruenceComparer(count))) };
             yield return new object[] { Label("OfType", (start, count, source) => source(start, count).OfType<int>()) };

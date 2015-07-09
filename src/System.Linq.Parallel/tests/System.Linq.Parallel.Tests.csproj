@@ -43,6 +43,7 @@
     <Compile Include="QueryOperators\AsSequentialTests.cs" />
     <Compile Include="QueryOperators\AverageTests.cs" />
     <Compile Include="QueryOperators\CastTests.cs" />
+    <Compile Include="QueryOperators\ChunkTests.cs" />
     <Compile Include="QueryOperators\ConcatTests.cs" />
     <Compile Include="QueryOperators\ContainsTests.cs" />
     <Compile Include="QueryOperators\CountLongCountTests.cs" />
