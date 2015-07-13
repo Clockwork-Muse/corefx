@@ -4379,77 +4379,7 @@ namespace System.Linq
             if (first == null) throw new ArgumentNullException(nameof(first));
             if (second == null) throw new ArgumentNullException(nameof(second));
 
-            // If comparer is null, use the default one
-            comparer = comparer ?? EqualityComparer<TSource>.Default;
-
-            QueryOperator<TSource> leftOp = QueryOperator<TSource>.AsQueryOperator(first);
-            QueryOperator<TSource> rightOp = QueryOperator<TSource>.AsQueryOperator(second);
-
-            // We use a fully-qualified type name for Shared here to prevent the conflict between System.Linq.Parallel.Shared<>
-            // and System.Threading.Shared<> in the 3.5 legacy build.
-            QuerySettings settings = leftOp.SpecifiedQuerySettings.Merge(rightOp.SpecifiedQuerySettings)
-                .WithDefaults()
-                .WithPerExecutionSettings(new CancellationTokenSource(), new System.Linq.Parallel.Shared<bool>(false));
-
-            // If first.GetEnumerator throws an exception, we don't want to wrap it with an AggregateException.
-            IEnumerator<TSource> e1 = first.GetEnumerator();
-            try
-            {
-                // If second.GetEnumerator throws an exception, we don't want to wrap it with an AggregateException.
-                IEnumerator<TSource> e2 = second.GetEnumerator();
-                try
-                {
-                    while (e1.MoveNext())
-                    {
-                        if (!(e2.MoveNext() && comparer.Equals(e1.Current, e2.Current))) return false;
-                    }
-                    if (e2.MoveNext()) return false;
-                }
-#if SUPPORT_THREAD_ABORT
-                catch (ThreadAbortException)
-                {
-                    // Do not wrap ThreadAbortExceptions
-                    throw;
-                }
-#endif
-                catch (Exception ex)
-                {
-                    ExceptionAggregator.ThrowOCEorAggregateException(ex, settings.CancellationState);
-                }
-                finally
-                {
-                    DisposeEnumerator<TSource>(e2, settings.CancellationState);
-                }
-            }
-            finally
-            {
-                DisposeEnumerator<TSource>(e1, settings.CancellationState);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// A helper method for SequenceEqual to dispose an enumerator. If an exception is thrown by the disposal, 
-        /// it gets wrapped into an AggregateException, unless it is an OCE with the query's CancellationToken.
-        /// </summary>
-        private static void DisposeEnumerator<TSource>(IEnumerator<TSource> e, CancellationState cancelState)
-        {
-            try
-            {
-                e.Dispose();
-            }
-#if SUPPORT_THREAD_ABORT
-            catch (ThreadAbortException)
-            {
-                // Do not wrap ThreadAbortExceptions
-                throw;
-            }
-#endif
-            catch (Exception ex)
-            {
-                ExceptionAggregator.ThrowOCEorAggregateException(ex, cancelState);
-            }
+            return new SequenceEqualQueryOperator<TSource>(first, second, comparer).All(x => x);
         }
 
         /// <summary>

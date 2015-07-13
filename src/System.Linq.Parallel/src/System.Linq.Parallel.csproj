@@ -53,6 +53,7 @@
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\HashJoinQueryOperatorEnumerator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\IntersectQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\JoinQueryOperator.cs" />
+    <Compile Include="System\Linq\Parallel\QueryOperators\Binary\SequenceEqualQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\UnionQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\ZipQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Inlined\CountAggregationOperator.cs" />
