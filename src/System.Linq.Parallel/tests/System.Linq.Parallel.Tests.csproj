@@ -20,6 +20,9 @@
     <Compile Include="$(CommonTestPath)\System\Threading\ThreadPoolHelpers.cs">
       <Link>CommonTest\System\Threading\ThreadPoolHelpers.cs</Link>
     </Compile>
+    <Compile Include="$(CommonTestPath)\System\DeliberateTestException.cs">
+      <Link>Common\System\DeliberateTestException.cs</Link>
+    </Compile>
     <Compile Include="Combinatorial\CancellationParallelQueryCombinationTests.cs" />
     <Compile Include="Combinatorial\FailingParallelQueryCombinationTests.cs" />
     <Compile Include="Combinatorial\ParallelQueryCombinationTests.cs" />
@@ -27,7 +30,6 @@
     <Compile Include="Combinatorial\UnorderedParallelQueryCombinationTests.cs" />
     <Compile Include="Helpers\AssertThrows.cs" />
     <Compile Include="Helpers\Comparers.cs" />
-    <Compile Include="Helpers\DeliberateTestException.cs" />
     <Compile Include="Helpers\Enumerables.cs" />
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\IntegerRangeSet.cs" />
