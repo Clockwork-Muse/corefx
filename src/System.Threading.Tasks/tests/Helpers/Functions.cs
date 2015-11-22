@@ -12,5 +12,12 @@ namespace System.Threading.Tasks.Tests
             AggregateException ae = Assert.Throws<AggregateException>(query);
             Assert.All(ae.InnerExceptions, e => Assert.IsType<T>(e));
         }
+
+        public async static Task<Task> AssertThrowsAsync<T>(Func<Task> query) where T : Exception
+        {
+            Task t = query();
+            await Assert.ThrowsAsync<T>(() => t);
+            return t;
+        }
     }
 }

@@ -2,562 +2,952 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Xunit;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Linq;
+using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
     public class TaskFactory_FromAsyncTests
     {
-        // Exercise the FromAsync() methods in Task and Task<TResult>.
         [Fact]
-        public static void RunAPMFactoryTests()
+        public static void FromAsync_IAsyncResult()
         {
-            FakeAsyncClass fac = new FakeAsyncClass();
-            Task t = null;
-            Task<string> f = null;
-            string check;
-            object stateObject = new object();
+            Task completed = CompletedTask();
+            bool callbackRan = false;
 
-            // Exercise void overload that takes IAsyncResult instead of StartMethod
-            t = Task.Factory.FromAsync(fac.StartWrite("", 0, 0, null, null), delegate (IAsyncResult iar) { });
+            Task t = new TaskFactory().FromAsync(completed, result => AssertResultAndMark(completed, result, ref callbackRan));
             t.Wait();
-            check = fac.ToString();
-            Assert.Equal(0, check.Length);
 
-            //CreationOption overload
-            t = Task.Factory.FromAsync(fac.StartWrite("", 0, 0, null, null), delegate (IAsyncResult iar) { }, TaskCreationOptions.None);
-            t.Wait();
-            check = fac.ToString();
-            Assert.Equal(0, check.Length);
-
-            // Exercise 0-arg void option
-            t = Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, stateObject);
-            t.Wait();
-            Assert.Equal(0, check.Length);
-            Assert.Same(stateObject, ((IAsyncResult)t).AsyncState);
-
-            // Exercise 1-arg void option
-            Task.Factory.FromAsync(
-                fac.StartWrite,
-                fac.EndWrite,
-                "1234", stateObject).Wait();
-            check = fac.ToString();
-            Assert.Equal("1234", check);
-            Assert.Same(stateObject, ((IAsyncResult)t).AsyncState);
-
-            // Exercise 2-arg void option
-            Task.Factory.FromAsync(
-                fac.StartWrite,
-                fac.EndWrite,
-                "aaaabcdef",
-                4, stateObject).Wait();
-            check = fac.ToString();
-            Assert.Equal("1234aaaa", check);
-            Assert.Same(stateObject, ((IAsyncResult)t).AsyncState);
-
-            // Exercise 3-arg void option
-            Task.Factory.FromAsync(
-                fac.StartWrite,
-                fac.EndWrite,
-                "abcdzzzz",
-                4,
-                4,
-                stateObject).Wait();
-            check = fac.ToString();
-            Assert.Equal("1234aaaazzzz", check);
-            Assert.Same(stateObject, ((IAsyncResult)t).AsyncState);
-
-            // Read side, exercises getting return values from EndMethod
-            char[] carray = new char[100];
-
-            // Exercise 3-arg value option
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                4, // maxchars
-                carray,
-                0,
-                stateObject);
-            string s = f.Result;
-            Assert.Equal("1234", s);
-            Assert.Equal('1', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 2-arg value option
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                4,
-                carray,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("aaaa", s);
-            Assert.Equal('a', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 1-arg value option
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                1,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("z", s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 0-arg value option
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("zzz", s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            //
-            // Do all of the read tests again, except with Task.Factory.FromAsync<string>(), instead of Task<string>.Factory.FromAsync().
-            //
-            fac.EndWrite(fac.StartWrite("12345678aaaaAAAAzzzz", null, null));
-
-            // Exercise 3-arg value option
-            f = Task.Factory.FromAsync<int, char[], int, string>(
-                //f = Task.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                4, // maxchars
-                carray,
-                0,
-                stateObject);
-
-            s = f.Result;
-            Assert.Equal("1234", s);
-            Assert.Equal('1', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // one more with the creationOptions overload
-            f = Task.Factory.FromAsync<int, char[], int, string>(
-              //f = Task.Factory.FromAsync(
-              fac.StartRead,
-              fac.EndRead,
-              4, // maxchars
-              carray,
-              0,
-              stateObject,
-              TaskCreationOptions.None);
-
-            s = f.Result;
-            Assert.Equal("5678", s);
-            Assert.Equal('5', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 2-arg value option
-            f = Task.Factory.FromAsync<int, char[], string>(
-                fac.StartRead,
-                fac.EndRead,
-                4,
-                carray,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("aaaa", s);
-            Assert.Equal('a', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            //one more with the creation option overload
-            f = Task.Factory.FromAsync<int, char[], string>(
-               fac.StartRead,
-               fac.EndRead,
-               4,
-               carray,
-               stateObject,
-               TaskCreationOptions.None);
-            s = f.Result;
-            Assert.Equal("AAAA", s);
-            Assert.Equal('A', carray[0]);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 1-arg value option
-            f = Task.Factory.FromAsync<int, string>(
-                fac.StartRead,
-                fac.EndRead,
-                1,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("z", s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // one more with creation option overload
-            f = Task.Factory.FromAsync<int, string>(
-             fac.StartRead,
-             fac.EndRead,
-             1,
-             stateObject,
-             TaskCreationOptions.None);
-            s = f.Result;
-            Assert.Equal("z", s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Exercise 0-arg value option
-            f = Task.Factory.FromAsync<string>(
-                fac.StartRead,
-                fac.EndRead,
-                stateObject);
-            s = f.Result;
-            Assert.Equal("zz", s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            //one more with Creation options overload
-            f = Task.Factory.FromAsync<string>(
-               fac.StartRead,
-               fac.EndRead,
-               stateObject,
-               TaskCreationOptions.None);
-            s = f.Result;
-            Assert.Equal(string.Empty, s);
-            Assert.Same(stateObject, ((IAsyncResult)f).AsyncState);
-
-            // Inject a few more characters into the buffer
-            fac.EndWrite(fac.StartWrite("0123456789", null, null));
-
-
-            // Exercise value overload that accepts an IAsyncResult instead of a beginMethod.
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead(4, null, null),
-                fac.EndRead);
-            s = f.Result;
-            Assert.Equal("0123", s);
-
-            f = Task.Factory.FromAsync<string>(
-                fac.StartRead(4, null, null),
-                fac.EndRead);
-            s = f.Result;
-            Assert.Equal("4567", s);
-
-            // Test Exception handling from beginMethod
-            Assert.ThrowsAsync<NullReferenceException>(() =>
-               t = Task.Factory.FromAsync(
-                   fac.StartWrite,
-                   fac.EndWrite,
-                   (string)null,  // will cause null.Length to be dereferenced
-                   null));
-
-
-            // Test Exception handling from asynchronous logic
-            f = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                fac.EndRead,
-                10,
-                carray,
-                200, // offset past end of array
-                null);
-
-            Assert.Throws<AggregateException>(() =>
-               check = f.Result);
-
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-               Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, null, TaskCreationOptions.LongRunning));
-
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-              Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, null, TaskCreationOptions.PreferFairness));
-
-            // Empty the buffer, then inject a few more characters into the buffer
-            fac.ResetStateTo("0123456789");
-
-            Task asyncTask = null;
-
-            //
-            // Now check that the endMethod throwing an OCE correctly results in a canceled task.
-            //
-
-            // Test IAsyncResult overload that returns Task
-            asyncTask = Task.Factory.FromAsync(
-                fac.StartWrite("abc", null, null),
-                delegate (IAsyncResult iar) { throw new OperationCanceledException("FromAsync"); });
-
-            AggregateException ae = Assert.Throws<AggregateException>(() =>
-            {
-                asyncTask.Wait();
-            });
-            Assert.Equal(typeof(TaskCanceledException), ae.InnerException.GetType());
-            Assert.Equal(TaskStatus.Canceled, asyncTask.Status);
-
-            // Test beginMethod overload that returns Task
-            asyncTask = Task.Factory.FromAsync(
-                fac.StartWrite,
-                delegate (IAsyncResult iar) { throw new OperationCanceledException("FromAsync"); },
-                "abc",
-                null);
-
-            ae = Assert.Throws<AggregateException>(() =>
-            {
-                asyncTask.Wait();
-            });
-            Assert.Equal(typeof(TaskCanceledException), ae.InnerException.GetType());
-            Assert.Equal(TaskStatus.Canceled, asyncTask.Status);
-
-            // Test IAsyncResult overload that returns Task<string>
-            Task<string> asyncFuture = null;
-            asyncFuture = Task<string>.Factory.FromAsync(
-                fac.StartRead(3, null, null),
-                delegate (IAsyncResult iar) { throw new OperationCanceledException("FromAsync"); });
-
-            ae = Assert.Throws<AggregateException>(() =>
-            {
-                asyncTask.Wait();
-            });
-            Assert.Equal(typeof(TaskCanceledException), ae.InnerException.GetType());
-            Assert.Equal(TaskStatus.Canceled, asyncTask.Status);
-
-            // Test beginMethod overload that returns Task<string>
-            asyncFuture = null;
-            asyncFuture = Task<string>.Factory.FromAsync(
-                fac.StartRead,
-                delegate (IAsyncResult iar) { throw new OperationCanceledException("FromAsync"); },
-                3, null);
-
-            ae = Assert.Throws<AggregateException>(() =>
-            {
-                asyncFuture.Wait();
-            });
-            Assert.Equal(typeof(TaskCanceledException), ae.InnerException.GetType());
-            Assert.Equal(TaskStatus.Canceled, asyncFuture.Status);
-
-            //
-            // Make sure that tasks aren't left hanging if StartXYZ() throws an exception
-            //
-            Task foo = Task.Factory.StartNew(delegate
-            {
-                // Every one of these should throw an exception from StartWrite/StartRead.  Test to
-                // see that foo is allowed to complete (i.e., no dangling attached tasks from FromAsync()
-                // calls.
-                Task foo1 = Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, (string)null, null, TaskCreationOptions.AttachedToParent);
-                Task foo2 = Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, (string)null, 4, null, TaskCreationOptions.AttachedToParent);
-                Task foo3 = Task.Factory.FromAsync(fac.StartWrite, fac.EndWrite, (string)null, 4, 4, null, TaskCreationOptions.AttachedToParent);
-                Task<string> foo4 = Task<string>.Factory.FromAsync(fac.StartRead, fac.EndRead, -1, null, TaskCreationOptions.AttachedToParent);
-                Task<string> foo5 = Task<string>.Factory.FromAsync(fac.StartRead, fac.EndRead, -1, (char[])null, null, TaskCreationOptions.AttachedToParent);
-                Task<string> foo6 = Task<string>.Factory.FromAsync(fac.StartRead, fac.EndRead, -1, (char[])null, 200, null, TaskCreationOptions.AttachedToParent);
-            });
-
-            Debug.WriteLine("RunAPMFactoryTests: Waiting on task w/ faulted FromAsync() calls.  If we hang, there is a problem");
-
-            Assert.Throws<AggregateException>(() =>
-            {
-                foo.Wait();
-            });
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
         }
 
-        // This class is used in testing APM Factory tests.
-        private class FakeAsyncClass
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.None)]
+        public static void FromAsync_IAsyncResult_TaskCreationOptions(TaskCreationOptions options)
         {
-            private List<char> _list = new List<char>();
+            Task completed = CompletedTask();
+            bool callbackRan = false;
 
-            public override string ToString()
+            Task t = new TaskFactory().FromAsync(completed, result => AssertResultAndMark(completed, result, ref callbackRan), options);
+            t.Wait();
+
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Equal(options, t.CreationOptions);
+        }
+
+        [Fact]
+        public static void Task_FromAsync()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object state = new object();
+
+            Task t = new TaskFactory().FromAsync(
+                (callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan),
+                result => AssertResultAndMark(completed, result, ref callbackRan), state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+        }
+
+        [Fact]
+        public static void Task_FromAsync_OneArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object state = new object();
+
+            Task t = new TaskFactory().FromAsync(
+                (a1, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1),
+                result => AssertResultAndMark(completed, result, ref callbackRan), arg1, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+        }
+
+        [Fact]
+        public static void Task_FromAsync_TwoArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object state = new object();
+
+            Task t = new TaskFactory().FromAsync(
+                (a1, a2, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2),
+                result => AssertResultAndMark(completed, result, ref callbackRan), arg1, arg2, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+        }
+
+        [Fact]
+        public static void Task_FromAsync_ThreeArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object arg3 = new object();
+            object state = new object();
+
+            Task t = new TaskFactory().FromAsync(
+                (a1, a2, a3, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2, arg3, a3),
+                result => AssertResultAndMark(completed, result, ref callbackRan), arg1, arg2, arg3, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+        }
+
+        [Fact]
+        public static void Task_Result_FromAsync_ThreeArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object arg3 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = Task<object>.Factory.FromAsync(
+                (a1, a2, a3, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2, arg3, a3),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, arg3, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void Task_Result_FromAsync_TwoArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = Task<object>.Factory.FromAsync(
+                (a1, a2, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void Task_Result_FromAsync_OneArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = Task<object>.Factory.FromAsync(
+                (a1, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void Task_Result_FromAsync()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = Task<object>.Factory.FromAsync(
+                (callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void FromAsync_Result_ThreeArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object arg3 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, a2, a3, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2, arg3, a3),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, arg3, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.None)]
+        public static void FromAsync_Result_ThreeArg_TaskCreationOptions(TaskCreationOptions options)
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object arg3 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, a2, a3, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2, arg3, a3),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, arg3, state, options);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Equal(options, t.CreationOptions);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void FromAsync_Result_TwoArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, a2, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.None)]
+        public static void FromAsync_Result_TwoArg_TaskCreationOption(TaskCreationOptions options)
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, a2, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, state, options);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Equal(options, t.CreationOptions);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void FromAsync_Result_OneArg()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.None)]
+        public static void FromAsync_Result_OneArg_TaskCreationOption(TaskCreationOptions options)
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object arg1 = new object();
+            object arg2 = new object();
+            object arg3 = new object();
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (a1, a2, a3, callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan, arg1, a1, arg2, a2, arg3, a3),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), arg1, arg2, arg3, state, options);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Equal(options, t.CreationOptions);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void FromAsync_Result()
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), state);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.None)]
+        public static void FromAsync_Result_TaskCreationOption(TaskCreationOptions options)
+        {
+            Task completed = CompletedTask();
+            bool asyncRan = false;
+            bool callbackRan = false;
+            object state = new object();
+            object value = new object();
+
+            Task<object> t = new TaskFactory().FromAsync(
+                (callback, asyncState) => AssertStateAndMark(completed, callback, state, asyncState, ref asyncRan),
+                result => AssertResultAndReturn(completed, result, ref callbackRan, value), state, options);
+            t.Wait();
+
+            Assert.True(asyncRan);
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Equal(options, t.CreationOptions);
+            Assert.Same(state, t.AsyncState);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void Task_Result_FromAsync_IAsyncResult()
+        {
+            Task completed = CompletedTask();
+            object value = new object();
+            bool callbackRan = false;
+
+            Task<object> t = Task<object>.Factory.FromAsync(completed, result => AssertResultAndReturn(completed, result, ref callbackRan, value));
+            t.Wait();
+
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public static void FromAsync_Result_IAsyncResult()
+        {
+            Task completed = CompletedTask();
+            object value = new object();
+            bool callbackRan = false;
+
+            Task<object> t = new TaskFactory().FromAsync(completed, result => AssertResultAndReturn(completed, result, ref callbackRan, value));
+            t.Wait();
+
+            Assert.True(callbackRan);
+            Assert.Equal(TaskStatus.RanToCompletion, t.Status);
+            Assert.Same(value, t.Result);
+        }
+
+        [Fact]
+        public async static void FromAsync_CallbackException()
+        {
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new DeliberateTestException(); }));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string>((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string>((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state"));
+            await Assert.ThrowsAsync<DeliberateTestException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+        }
+
+        [Fact]
+        public static void FromAsync_BeginException()
+        {
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => { }, "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => { }, "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "arg2", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "arg2", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => { }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<DeliberateTestException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => { throw new DeliberateTestException(); }, result => string.Empty, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+        }
+
+        [Fact]
+        public async static void FromAsync_Canceled()
+        {
+            Task t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new OperationCanceledException(); }));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string>((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string>((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new OperationCanceledException(); }, TaskCreationOptions.None, TaskScheduler.Default));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state"));
+            Assert.True(t.IsCanceled);
+            t = await Functions.AssertThrowsAsync<OperationCanceledException>(
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new OperationCanceledException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None));
+            Assert.True(t.IsCanceled);
+        }
+
+        [Fact]
+        public static void FromAsync_ArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(
+               () => { new TaskFactory().FromAsync(Task.CompletedTask, null); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(Task.CompletedTask, null, TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(Task.CompletedTask, null, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(Task.CompletedTask, result => { }, TaskCreationOptions.None, null); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((callback, state) => completion(callback), null, "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((callback, state) => completion(callback), null, "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), null, "arg1", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), null, "arg1", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", "arg2", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", "arg2", (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", "arg2", "arg3", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync(null, result => { }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(null, result => string.Empty); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(Task.CompletedTask, null); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(null, result => string.Empty, TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(Task.CompletedTask, null, TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(null, result => string.Empty, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(Task.CompletedTask, null, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(Task.CompletedTask, result => string.Empty, TaskCreationOptions.None, null); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>((callback, state) => completion(callback), null, "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(null, result => string.Empty, "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>((callback, state) => completion(callback), null, "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string>(null, result => string.Empty, "state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), null, "arg1", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string>(null, result => string.Empty, "arg1", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), null, "arg1", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string>(null, result => string.Empty, "arg1", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string>(null, result => string.Empty, "arg1", "arg2", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string>(null, result => string.Empty, "arg1", "arg2", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string, string>(null, result => string.Empty, "arg1", "arg2", "arg3", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory().FromAsync<string, string, string, string>(null, result => string.Empty, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(Task.CompletedTask, null); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(Task.CompletedTask, null, TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(Task.CompletedTask, null, TaskCreationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(Task.CompletedTask, result => string.Empty, TaskCreationOptions.None, null); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((callback, state) => completion(callback), null, "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((callback, state) => completion(callback), null, "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), null, "arg1", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), null, "arg1", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", "arg2", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), null, "arg1", "arg2", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", "arg2", (object)"state", TaskCreationOptions.None); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state"); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", "arg2", "arg3", "state"); });
+
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), null, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+            Assert.Throws<ArgumentNullException>(
+                () => { new TaskFactory<string>().FromAsync(null, result => string.Empty, "arg1", "arg2", "arg3", "state", TaskCreationOptions.None); });
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        [InlineData(TaskCreationOptions.PreferFairness)]
+        public static void TaskFactory_FromAsync_ArgumentOutOfRange(TaskCreationOptions options)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => { new TaskFactory(options, TaskContinuationOptions.None).FromAsync((callback, state) => completion(callback), result => { }, "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => { new TaskFactory(options, TaskContinuationOptions.None).FromAsync((arg1, callback, state) => completion(callback), result => { }, "arg1", "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => { new TaskFactory(options, TaskContinuationOptions.None).FromAsync((arg1, arg2, callback, state) => completion(callback), result => { }, "arg1", "arg2", "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => { new TaskFactory(options, TaskContinuationOptions.None).FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { }, "arg1", "arg2", "arg3", "state"); });
+
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => { new TaskFactory<string>(options, TaskContinuationOptions.None).FromAsync((callback, state) => completion(callback), result => string.Empty, "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => { new TaskFactory<string>(options, TaskContinuationOptions.None).FromAsync((arg1, callback, state) => completion(callback), result => string.Empty, "arg1", "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => { new TaskFactory<string>(options, TaskContinuationOptions.None).FromAsync((arg1, arg2, callback, state) => completion(callback), result => string.Empty, "arg1", "arg2", "state"); });
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => { new TaskFactory<string>(options, TaskContinuationOptions.None).FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => string.Empty, "arg1", "arg2", "arg3", "state"); });
+        }
+
+        [Fact]
+        public static void FromAsync_CompletesOnChildException()
+        {
+            Func<Task>[] create = new Func<Task>[]
             {
-                StringBuilder sb = new StringBuilder();
-                lock (_list)
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent, TaskScheduler.Default),
+                () => new TaskFactory().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync<string>(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent, TaskScheduler.Default),
+                () => new TaskFactory().FromAsync<string>((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync<string, string>((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync<string, string, string>((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory().FromAsync<string, string, string, string>((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory<string>().FromAsync(CompletedTask(), result => { throw new DeliberateTestException(); }, TaskCreationOptions.AttachedToParent, TaskScheduler.Default),
+                () => new TaskFactory<string>().FromAsync((callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory<string>().FromAsync((arg1, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "state", TaskCreationOptions.AttachedToParent),
+                () => new TaskFactory<string>().FromAsync((arg1, arg2, arg3, callback, state) => completion(callback), result => { throw new DeliberateTestException(); }, "arg1", "arg2", "arg3", "state", TaskCreationOptions.AttachedToParent),
+            };
+
+            Task[] tasks = new Task[create.Length];
+
+            Task outer = new TaskFactory().StartNew(() =>
+            {
+                for (int i = 0; i < create.Length; i++)
                 {
-                    for (int i = 0; i < _list.Count; i++)
-                        sb.Append(_list[i]);
+                    tasks[i] = create[i]();
                 }
-                return sb.ToString();
-            }
+            });
 
-            // Silly use of Write, but I wanted to test no-argument StartXXX handling.
-            public IAsyncResult StartWrite(AsyncCallback cb, object o)
+            Debug.WriteLine("FromAsync_CompletesOnChildException: Waiting on task w/ faulted FromAsync() calls.  If we hang, there is a problem");
+            AggregateException ae = Assert.Throws<AggregateException>(() => outer.Wait());
+            Debug.WriteLine("FromAsync_CompletesOnChildException: Completed, no problem");
+
+            Assert.True(outer.IsFaulted);
+            Assert.Equal(TaskStatus.Faulted, outer.Status);
+            Assert.Equal(create.Length, ae.InnerExceptions.Count);
+            Assert.All(tasks, task =>
             {
-                return StartWrite("", 0, 0, cb, o);
-            }
-
-            public IAsyncResult StartWrite(string s, AsyncCallback cb, object o)
-            {
-                return StartWrite(s, 0, s.Length, cb, o);
-            }
-
-            public IAsyncResult StartWrite(string s, int length, AsyncCallback cb, object o)
-            {
-                return StartWrite(s, 0, length, cb, o);
-            }
-
-            public IAsyncResult StartWrite(string s, int offset, int length, AsyncCallback cb, object o)
-            {
-                myAsyncResult mar = new myAsyncResult(cb, o);
-
-                // Allow for exception throwing to test our handling of that.
-                if (s == null)
-                    throw new ArgumentNullException(nameof(s));
-
-                Task t = Task.Factory.StartNew(delegate
-                {
-                    //Task.Delay(100).Wait();
-                    try
-                    {
-                        lock (_list)
-                        {
-                            for (int i = 0; i < length; i++)
-                                _list.Add(s[i + offset]);
-                        }
-                        mar.Signal();
-                    }
-                    catch (Exception e) { mar.Signal(e); }
-                });
-
-
-                return mar;
-            }
-
-            public void EndWrite(IAsyncResult iar)
-            {
-                myAsyncResult mar = iar as myAsyncResult;
-                mar.Wait();
-                if (mar.IsFaulted)
-                    throw (mar.Exception);
-            }
-
-            public IAsyncResult StartRead(AsyncCallback cb, object o)
-            {
-                return StartRead(128 /*=maxbytes*/, null, 0, cb, o);
-            }
-
-            public IAsyncResult StartRead(int maxBytes, AsyncCallback cb, object o)
-            {
-                return StartRead(maxBytes, null, 0, cb, o);
-            }
-
-            public IAsyncResult StartRead(int maxBytes, char[] buf, AsyncCallback cb, object o)
-            {
-                return StartRead(maxBytes, buf, 0, cb, o);
-            }
-
-            public IAsyncResult StartRead(int maxBytes, char[] buf, int offset, AsyncCallback cb, object o)
-            {
-                myAsyncResult mar = new myAsyncResult(cb, o);
-
-                // Allow for exception throwing to test our handling of that.
-                if (maxBytes == -1)
-                    throw new ArgumentException("Value was not valid", nameof(maxBytes));
-
-                Task t = Task.Factory.StartNew(delegate
-                {
-                    //Thread.Sleep(100);
-                    StringBuilder sb = new StringBuilder();
-                    int bytesRead = 0;
-                    try
-                    {
-                        lock (_list)
-                        {
-                            while ((_list.Count > 0) && (bytesRead < maxBytes))
-                            {
-                                sb.Append(_list[0]);
-                                if (buf != null) { buf[offset] = _list[0]; offset++; }
-                                _list.RemoveAt(0);
-                                bytesRead++;
-                            }
-                        }
-
-                        mar.SignalState(sb.ToString());
-                    }
-                    catch (Exception e) { mar.Signal(e); }
-                });
-
-                return mar;
-            }
-
-
-            public string EndRead(IAsyncResult iar)
-            {
-                myAsyncResult mar = iar as myAsyncResult;
-                if (mar.IsFaulted)
-                    throw (mar.Exception);
-                return (string)mar.AsyncState;
-            }
-
-            public void ResetStateTo(string s)
-            {
-                _list.Clear();
-                for (int i = 0; i < s.Length; i++)
-                    _list.Add(s[i]);
-            }
-        }
-
-        // This is an internal class used for a concrete IAsyncResult in the APM Factory tests.
-        private class myAsyncResult : IAsyncResult
-        {
-            private volatile int _isCompleted;
-            private ManualResetEvent _asyncWaitHandle;
-            private AsyncCallback _callback;
-            private object _asyncState;
-            private Exception _exception;
-
-            public myAsyncResult(AsyncCallback cb, object o)
-            {
-                _isCompleted = 0;
-                _asyncWaitHandle = new ManualResetEvent(false);
-                _callback = cb;
-                _asyncState = o;
-                _exception = null;
-            }
-
-            public bool IsCompleted
-            {
-                get { return (_isCompleted == 1); }
-            }
-
-            public bool CompletedSynchronously
-            {
-                get { return false; }
-            }
-
-            public WaitHandle AsyncWaitHandle
-            {
-                get { return _asyncWaitHandle; }
-            }
-
-            public object AsyncState
-            {
-                get { return _asyncState; }
-            }
-
-            public void Signal()
-            {
-                _isCompleted = 1;
-                _asyncWaitHandle.Set();
-                if (_callback != null)
-                    _callback(this);
-            }
-
-            public void Signal(Exception e)
-            {
-                _exception = e;
-                Signal();
-            }
-
-            public void SignalState(object o)
-            {
-                _asyncState = o;
-                Signal();
-            }
-
-            public void Wait()
-            {
-                _asyncWaitHandle.WaitOne();
-                if (_exception != null)
-                    throw (_exception);
-            }
-
-            public bool IsFaulted
-            {
-                get { return ((_isCompleted == 1) && (_exception != null)); }
-            }
-
-            public Exception Exception
-            {
-                get { return _exception; }
-            }
+                Assert.True(task.IsFaulted);
+                Assert.Equal(TaskStatus.Faulted, task.Status);
+            });
         }
 
         [ActiveIssue("https://github.com/dotnet/coreclr/issues/7892")] // BinaryCompatibility reverting FromAsync to .NET 4 behavior, causing invokesCallback=false to fail
@@ -581,6 +971,54 @@ namespace System.Threading.Tasks.Tests
             public bool CompletedSynchronously => true;
             public bool IsCompleted => true;
             public WaitHandle AsyncWaitHandle { get { throw new NotImplementedException(); } }
+        }
+
+        /// <summary>
+        /// Get a unique completed task.
+        /// </summary>
+        /// Task.CompletedTask returns a cached instance;
+        ///  this version returns a unique one on each call.
+        /// <returns>A unique completed task</returns>
+        private static Task CompletedTask()
+        {
+            Task completed = Task.Run(() => { /* do nothing */ });
+            completed.Wait();
+            return completed;
+        }
+
+        private static Func<AsyncCallback, IAsyncResult> completion =
+           callback =>
+           {
+               Task completed = CompletedTask();
+               callback(completed);
+               return completed;
+           };
+
+        private static void AssertResultAndMark(Task completed, IAsyncResult result, ref bool callbackRan)
+        {
+            Assert.Same(completed, result);
+            callbackRan = true;
+        }
+
+        private static T AssertResultAndReturn<T>(Task completed, IAsyncResult result, ref bool callbackRan, T value)
+        {
+            Assert.Same(completed, result);
+            callbackRan = true;
+            return value;
+        }
+
+        private static IAsyncResult AssertStateAndMark(IAsyncResult result, AsyncCallback callback, object state, object asyncState, ref bool asyncRan, params object[] args)
+        {
+            if (args.Length % 2 != 0)
+            {
+                throw new ArgumentException("Arguments need to be in expected/actual pairs");
+            }
+            Assert.Same(state, asyncState);
+            // Elements at even indices are expected, odd indices actual.
+            Assert.Equal(args.Where((e, i) => i % 2 == 0), args.Where((e, i) => i % 2 == 1));
+            callback(result);
+            asyncRan = true;
+            return result;
         }
     }
 }
