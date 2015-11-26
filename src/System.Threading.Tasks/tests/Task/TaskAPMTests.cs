@@ -21,7 +21,7 @@ namespace System.Threading.Tasks.Tests
         /// <summary>
         /// The constant that defines the number of milliseconds to spinwait (to simulate work)
         /// </summary>
-        private const int WorkTimeMilliseconds = 100;
+        private static readonly TimeSpan WorkTime = TimeSpan.FromMilliseconds(100);
 
         // Maximum time to wait, for safety
         private const int MaxWaitTime = 1000;
@@ -30,7 +30,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void WaitUntilComplete_Task()
         {
-            Task task = Task.Factory.StartNew(Spin);
+            Task task = Task.Factory.StartNew(() => SpinWait.SpinUntil(() => false, WorkTime));
             task.Wait();
 
             AssertComplete(task);
@@ -40,7 +40,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void WaitUntilComplete_FutureT()
         {
-            Task<bool> task = Task.Factory.StartNew(() => SpinAndReturn(true));
+            Task<bool> task = Task.Factory.StartNew(() => Functions.SpinAndReturn(WorkTime, true));
             task.Wait();
 
             AssertComplete(task);
@@ -52,7 +52,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void PollUntilComplete_Task()
         {
-            Task task = Task.Factory.StartNew(Spin);
+            Task task = Task.Factory.StartNew(() => SpinWait.SpinUntil(() => false, WorkTime));
             var mres = new ManualResetEventSlim();
             while (!task.IsCompleted)
             {
@@ -66,7 +66,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void PollUntilComplete_Future()
         {
-            Task<bool> task = Task.Factory.StartNew(() => SpinAndReturn(true));
+            Task<bool> task = Task.Factory.StartNew(() => Functions.SpinAndReturn(WorkTime, true));
             var mres = new ManualResetEventSlim();
             while (!task.IsCompleted)
             {
@@ -81,7 +81,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void WaitOnAsyncWaitHandle_Task()
         {
-            Task task = Task.Factory.StartNew(Spin);
+            Task task = Task.Factory.StartNew(() => SpinWait.SpinUntil(() => false, WorkTime));
             ((IAsyncResult)task).AsyncWaitHandle.WaitOne();
 
             AssertComplete(task);
@@ -91,7 +91,7 @@ namespace System.Threading.Tasks.Tests
         [OuterLoop]
         public static void WaitOnAsyncWaitHandle_Future()
         {
-            Task<bool> task = Task.Factory.StartNew(() => SpinAndReturn(true));
+            Task<bool> task = Task.Factory.StartNew(() => Functions.SpinAndReturn(WorkTime, true));
             ((IAsyncResult)task).AsyncWaitHandle.WaitOne();
 
             AssertComplete(task);
@@ -104,7 +104,7 @@ namespace System.Threading.Tasks.Tests
         {
             using (ManualResetEventSlim mre = new ManualResetEventSlim(false))
             {
-                Task task = Task.Factory.StartNew(Spin);
+                Task task = Task.Factory.StartNew(() => SpinWait.SpinUntil(() => false, WorkTime));
                 task.ContinueWith(ignored =>
                 {
                     AssertComplete(task);
@@ -124,7 +124,7 @@ namespace System.Threading.Tasks.Tests
         {
             using (ManualResetEventSlim mre = new ManualResetEventSlim(false))
             {
-                Task<bool> task = Task.Factory.StartNew(() => SpinAndReturn(true));
+                Task<bool> task = Task.Factory.StartNew(() => Functions.SpinAndReturn(WorkTime, true));
                 task.ContinueWith(completed =>
                 {
                     AssertComplete(task);
@@ -145,26 +145,6 @@ namespace System.Threading.Tasks.Tests
             Assert.True(task.IsCompleted);
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
             Assert.False(((IAsyncResult)task).CompletedSynchronously, "Should not have completed synchronously.");
-        }
-
-        /// <summary>
-        /// Simulate workload by spinning for the given time
-        /// </summary>
-        private static void Spin()
-        {
-            SpinWait.SpinUntil(() => false, WorkTimeMilliseconds);
-        }
-
-        /// <summary>
-        /// Simulate workload by spinning for the given time, then returning the given value
-        /// </summary>
-        /// <typeparam name="T">Type of the given value</typeparam>
-        /// <param name="value">The value to return</param>
-        /// <returns>Simulated result of work</returns>
-        private static T SpinAndReturn<T>(T value)
-        {
-            Spin();
-            return value;
         }
     }
 }
