@@ -33,7 +33,6 @@
     <Compile Include="Task\TaskCreateTests.cs" />
     <Compile Include="Task\TaskWaitAllAnyTests.cs" />
     <Compile Include="Task\TaskContinueWithTests.cs" />
-    <Compile Include="TaskFactory\TaskContinueWithAllAnyTests.cs" />
     <Compile Include="Task\TaskContinueWith_ContFuncAndActionWithArgsTests.cs" />
     <Compile Include="Task\TaskContinueWith_ContFuncAndActionTests.cs" />
     <Compile Include="TaskFactory\TaskContinueWhenAnyTests.cs" />
