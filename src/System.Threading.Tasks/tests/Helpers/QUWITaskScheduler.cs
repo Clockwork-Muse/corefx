@@ -13,6 +13,16 @@ namespace System.Threading.Tasks.Tests
 
         public int QueueTaskCount { get { return _queueTaskCount; } }
         public int TryExecuteTaskInlineCount { get { return _tryExecuteTaskInlineCount; } }
+        public bool AbleToExecuteInline { get; private set; }
+
+        public QUWITaskScheduler() : this(true)
+        {
+        }
+
+        public QUWITaskScheduler(bool ableToExecuteInline)
+        {
+            AbleToExecuteInline = ableToExecuteInline;
+        }
 
         protected override IEnumerable<Task> GetScheduledTasks()
         {
@@ -28,7 +38,20 @@ namespace System.Threading.Tasks.Tests
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             Interlocked.Increment(ref _tryExecuteTaskInlineCount);
-            return TryExecuteTask(task);
+
+            if (taskWasPreviouslyQueued)
+            {
+                return false;
+            }
+
+            if (AbleToExecuteInline)
+            {
+                return TryExecuteTask(task);
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }

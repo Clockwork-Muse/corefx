@@ -11,6 +11,9 @@
     <Compile Include="$(CommonTestPath)\System\DeliberateTestException.cs">
       <Link>Common\System\DeliberateTestException.cs</Link>
     </Compile>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
+    </Compile>
     <Compile Include="Helpers\Flag.cs" />
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\QUWITaskScheduler.cs" />
@@ -27,7 +30,7 @@
     <!-- Task -->
     <Compile Include="Task\RunContinuationsAsynchronouslyTests.cs" />
     <Compile Include="Task\TPLTestException.cs" />
-    <Compile Include="Task\TaskRunSyncTests.cs" />
+    <Compile Include="Task\TaskRunSynchronouslyTests.cs" />
     <Compile Include="Task\TaskStatusTests.cs" />
     <Compile Include="Task\TaskPropertiesTests.cs" />
     <Compile Include="Task\TaskCreateTests.cs" />
