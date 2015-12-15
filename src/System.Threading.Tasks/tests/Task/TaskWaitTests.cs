@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Xunit;
 
 namespace System.Threading.Tasks.Tests
@@ -196,7 +195,6 @@ namespace System.Threading.Tasks.Tests
             Assert.Throws<ArgumentOutOfRangeException>(() => new Task(() => { }).Wait(invalid));
             Assert.Throws<ArgumentOutOfRangeException>(() => Task.CompletedTask.Wait(invalid));
 
-
             Assert.Throws<ArgumentOutOfRangeException>(() => new Task(() => { }).Wait(-2, new CancellationToken()));
             Assert.Throws<ArgumentOutOfRangeException>(() => Task.CompletedTask.Wait(-2, new CancellationToken()));
         }
@@ -224,6 +222,100 @@ namespace System.Threading.Tasks.Tests
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(new CancellationToken()));
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(0, new CancellationToken(true)));
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(new CancellationToken(true)));
+        }
+
+        // Just runs a task and waits on it.
+        [Fact]
+        public static void RunTaskWaitTest_NegativeTests()
+        {
+            string exceptionMsg = "myexception";
+
+            // test exceptions
+            var task = Task.Factory.StartNew(() => { });
+            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(-2));
+            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(TimeSpan.FromMilliseconds(-2)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(TimeSpan.FromMilliseconds(uint.MaxValue)));
+
+            // wait on a task that gets canceled
+            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationToken ct = cts.Token;
+
+            ManualResetEvent taskStartedEvent = new ManualResetEvent(false);
+            Task t = Task.Factory.StartNew(() =>
+            {
+                taskStartedEvent.Set();
+                while (!ct.IsCancellationRequested) { }
+                throw new OperationCanceledException(ct);   //acknowledge the request
+            }, ct);
+
+            taskStartedEvent.WaitOne(); // make sure the task starts running before we set the CTS
+            cts.Cancel();
+            //tmr = new Timer((o) => cts.Cancel(), null, 100, Timeout.Infinite);
+
+            try
+            {
+                t.Wait();
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task show have thrown."));
+            }
+            catch (Exception e)
+            {
+                if (!(e is AggregateException) ||
+                    ((AggregateException)e).InnerExceptions.Count != 1 ||
+                    !(((AggregateException)e).InnerExceptions[0] is TaskCanceledException))
+                {
+                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task threw wrong exception."));
+                }
+            }
+
+            // wait on a task that throws
+            t = Task.Factory.StartNew(() => { throw new Exception(exceptionMsg); });
+            try
+            {
+                t.Wait();
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task show have thrown."));
+            }
+            catch (Exception e)
+            {
+                if (!(e is AggregateException) ||
+                    ((AggregateException)e).InnerExceptions.Count != 1 ||
+                    ((AggregateException)e).InnerExceptions[0].Message != exceptionMsg)
+                {
+                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task threw wrong exception."));
+                }
+            }
+
+            // wait on a task that has an exceptional child task
+            Task childTask = null;
+            t = Task.Factory.StartNew(() =>
+            {
+                childTask = Task.Factory.StartNew(() => { throw new Exception(exceptionMsg); }, TaskCreationOptions.AttachedToParent);
+            });
+
+            try
+            {
+                t.Wait();
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on a task with an exceptional child should have thrown."));
+            }
+            catch (Exception e)
+            {
+                AggregateException outerAggExp = e as AggregateException;
+                AggregateException innerAggExp = null;
+
+                if (outerAggExp == null ||
+                    outerAggExp.InnerExceptions.Count != 1 ||
+                    !(outerAggExp.InnerExceptions[0] is AggregateException))
+                {
+                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on task with exceptional child threw an expception other than AggExp(AggExp(childsException))."));
+                }
+
+                innerAggExp = outerAggExp.InnerExceptions[0] as AggregateException;
+
+                if (innerAggExp.InnerExceptions.Count != 1 ||
+                    innerAggExp.InnerExceptions[0].Message != exceptionMsg)
+                {
+                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on task with exceptional child threw AggExp(AggExp(childsException)), but conatined wrong child exception."));
+                }
+            }
         }
 
         private static void Wait(TimeSpan load, TimeSpan wait, TaskCreationOptions option, Func<Task, TimeSpan, bool> call)
@@ -294,7 +386,6 @@ namespace System.Threading.Tasks.Tests
                 Assert.Equal(TaskStatus.Running, nested.Status);
                 // release inner task to finish.
                 inner.Set();
-
 
                 AssertCompleteOrTimedOut(completed, wait, flag, outer);
             }

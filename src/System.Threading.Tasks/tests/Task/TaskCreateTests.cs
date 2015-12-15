@@ -222,6 +222,178 @@ namespace System.Threading.Tasks.Tests
             AssertCompletes(flag => Start(create(flag), TaskScheduler.Default));
         }
 
+        [Fact]
+        public static void RunRefactoringTests_NegativeTests()
+        {
+            int temp = 0;
+            Task<int> f = Task.Factory.StartNew<int>((object i) => { return (int)i; }, 1, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Current);
+            Task t;
+            temp = f.Result;
+            if (temp != 1)
+            {
+                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew<int>(Func<object, int>, object, CT, options, TaskScheduler).    > FAILED.  Delegate failed to execute."));
+            }
+
+            f = new TaskCompletionSource<int>().Task;
+            try
+            {
+                f.Start();
+                Assert.True(false, string.Format("RunRefactoringTests - TaskCompletionSource<int>.Task (should throw exception):    > FAILED.  No exception thrown."));
+            }
+            catch (Exception)
+            {
+                //Assert.True(false, string.Format("    > caught exception: {0}", e.Message));
+            }
+
+            t = new Task(delegate { temp = 100; });
+            t.Start();
+            try
+            {
+                t.Start();
+                Assert.True(false, string.Format("RunRefactoringTests - Restarting Task:    > FAILED.  No exception thrown, when there should be."));
+            }
+            catch (Exception)
+            {
+                //Assert.True(false, string.Format("    > caught exception: {0}", e.Message));
+            }
+
+            // If we don't do this, the asynchronous setting of temp=100 in the delegate could
+            // screw up some tests below.
+            t.Wait();
+
+            try
+            {
+                t = new Task(delegate { temp = 100; }, (TaskCreationOptions)10000);
+                Assert.True(false, string.Format("RunRefactoringTests - Illegal Options CTor Task:    > FAILED.  No exception thrown, when there should be."));
+            }
+            catch (Exception) { }
+
+            try
+            {
+                t = new Task(null);
+                Assert.True(false, string.Format("RunRefactoringTests - Task ctor w/ null action:    > FAILED.  No exception thrown."));
+            }
+            catch (Exception) { }
+
+            try
+            {
+                t = Task.Factory.StartNew(null);
+                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew() w/ Null Action:    > FAILED.  No exception thrown."));
+            }
+            catch (Exception) { }
+
+            t = new Task(delegate { });
+            Task t2 = t.ContinueWith(delegate { });
+            try
+            {
+                t2.Start();
+                Assert.True(false, string.Format("RunRefactoringTests - Task.Start() on Continuation Task:    > FAILED.  No exception thrown."));
+            }
+            catch (Exception) { }
+
+            t = new Task(delegate { });
+            try
+            {
+                t.Start(null);
+                Assert.True(false, string.Format("RunRefactoringTests - Task.Start() with null taskScheduler:    > FAILED.  No exception thrown."));
+            }
+            catch (Exception) { }
+
+            t = Task.Factory.StartNew(delegate { });
+            try
+            {
+                t = Task.Factory.StartNew(delegate { }, CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null);
+                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew() with null taskScheduler:    > FAILED.  No exception thrown."));
+            }
+            catch (Exception) { }
+        }
+
+        // Test overloads for Task<T> ctor, Task<T>.Factory.StartNew that accept a TaskCreationOptions param
+        [Fact]
+        public static void TestTaskTConstruction_tco()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                bool useCtor = (i == 0);
+                for (int j = 0; j < 2; j++)
+                {
+                    bool useObj = (j == 0);
+                    object refObj = new object();
+                    for (int k = 0; k < 2; k++)
+                    {
+                        bool useLongRunning = (k == 0);
+                        Task<int> f1;
+                        TaskCreationOptions tco = useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None;
+
+                        if (useCtor)
+                        {
+                            if (useObj)
+                            {
+                                f1 = new Task<int>(obj => 42, refObj, tco);
+                            }
+                            else
+                            {
+                                f1 = new Task<int>(() => 42, tco);
+                            }
+                            f1.Start();
+                        }
+                        else
+                        {
+                            if (useObj)
+                            {
+                                f1 = Task<int>.Factory.StartNew(obj => 42, refObj, tco);
+                            }
+                            else
+                            {
+                                f1 = Task<int>.Factory.StartNew(() => 42, tco);
+                            }
+                        }
+
+                        Exception ex = null;
+                        int result = 0;
+                        try
+                        {
+                            result = f1.Result;
+                        }
+                        catch (Exception e)
+                        {
+                            ex = e;
+                        }
+
+                        object asyncState = ((IAsyncResult)f1).AsyncState;
+
+                        Assert.True((ex == null), "TestTaskTConstruction_tco:  Did not expect an exception");
+                        Assert.True(f1.CreationOptions == tco, "TestTaskTConstruction_tco:  Mis-matched TaskCreationOptions");
+                        Assert.True(result == 42, "TestTaskTConstruction_tco:  Expected valid result");
+                        Assert.True(useObj || (asyncState == null), "TestTaskTConstruction_tco:  Expected non-null AsyncState only if object overload was used");
+                        Assert.True((!useObj) || (asyncState == refObj), "TestTaskTConstruction_tco:  Wrong AsyncState value returned");
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public static void RunBasicFutureTest_Negative()
+        {
+            //
+            // future basic functionality tests
+            //
+
+            // Test exceptional conditions
+            Assert.Throws<ArgumentNullException>(
+               () => { new Task<int>((Func<int>)null); });
+            Assert.Throws<ArgumentNullException>(
+               () => { new Task<int>((Func<object, int>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(
+               () => { Task<int>.Factory.StartNew((Func<int>)null); });
+            Assert.Throws<ArgumentNullException>(
+               () => { Task<int>.Factory.StartNew((Func<int>)null, CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(
+               () => { Task<int>.Factory.StartNew((Func<object, int>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(
+               () => { Task<int>.Factory.StartNew((obj) => 42, new object(), CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null); });
+        }
+
         private static T Start<T>(T task) where T : Task
         {
             task.Start();

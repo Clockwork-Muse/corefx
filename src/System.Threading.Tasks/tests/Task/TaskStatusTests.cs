@@ -327,6 +327,420 @@ namespace System.Threading.Tasks.Tests
             Assert.True(childTask.IsCanceled);
         }
 
+        // Test that TaskStatus values returned from Task.Status are what they should be.
+        // TODO: Test WaitingToRun, Blocked.
+        [Fact]
+        public static void RunTaskStatusTests()
+        {
+            Task t;
+            TaskStatus ts;
+            ManualResetEvent mre = new ManualResetEvent(false);
+
+            //
+            // Test for TaskStatus.Created
+            //
+            {
+                t = new Task(delegate { });
+                ts = t.Status;
+                if (ts != TaskStatus.Created)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Create:    > FAILED.  Expected Created status, got {0}", ts));
+                }
+                if (t.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Create:    > FAILED.  Expected IsCompleted to be false."));
+                }
+            }
+
+            //
+            // Test for TaskStatus.WaitingForActivation
+            //
+            {
+                Task ct = t.ContinueWith(delegate { });
+                ts = ct.Status;
+                if (ts != TaskStatus.WaitingForActivation)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForActivation:    > FAILED.  Expected WaitingForActivation status (continuation), got {0}", ts));
+                }
+                if (ct.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForActivation:    > FAILED.  Expected IsCompleted to be false."));
+                }
+
+                TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
+                ts = tcs.Task.Status;
+                if (ts != TaskStatus.WaitingForActivation)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForActivation:    > FAILED.  Expected WaitingForActivation status (TCS), got {0}", ts));
+                }
+                if (tcs.Task.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForActivation:    > FAILED.  Expected IsCompleted to be false."));
+                }
+                tcs.TrySetCanceled();
+            }
+
+            //
+            // Test for TaskStatus.Canceled for unstarted task being created with an already signaled CTS (this became a case of interest with the TPL Cancellation DCR)
+            //
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                CancellationToken token = cts.Token;
+                cts.Cancel();
+                t = new Task(delegate { }, token);  // should immediately transition into cancelled state
+
+                ts = t.Status;
+                if (ts != TaskStatus.Canceled)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Canceled (unstarted Task) (already signaled CTS):    > FAILED.  Expected Canceled status, got {0}", ts));
+                }
+            }
+
+            //
+            // Test for TaskStatus.Canceled for unstarted task being created with an already signaled CTS (this became a case of interest with the TPL Cancellation DCR)
+            //
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                CancellationToken token = cts.Token;
+
+                t = new Task(delegate { }, token);  // should immediately transition into cancelled state
+                cts.Cancel();
+
+                ts = t.Status;
+                if (ts != TaskStatus.Canceled)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Canceled (unstarted Task) (CTS signaled after ctor):   > FAILED.  Expected Canceled status, got {0}", ts));
+                }
+            }
+
+            //
+            // Test that Task whose CT gets canceled while it's running but
+            // which doesn't throw an OCE to acknowledge cancellation will end up in RunToCompletion state
+            //
+            {
+                CancellationTokenSource ctsource = new CancellationTokenSource();
+                CancellationToken ctoken = ctsource.Token;
+
+                t = Task.Factory.StartNew(delegate { ctsource.Cancel(); }, ctoken); // cancel but don't acknowledge
+                try { t.Wait(); }
+                catch { }
+
+                ts = t.Status;
+                if (ts != TaskStatus.RanToCompletion)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - Internal Cancellation:    > FAILED.  Expected RanToCompletion status, got {0}", ts));
+                }
+                if (!t.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - Internal Cancellation:    > FAILED.  Expected IsCompleted to be true."));
+                }
+            }
+
+            mre.Reset();
+
+            //
+            // Test for TaskStatus.Running
+            //
+            ManualResetEvent mre2 = new ManualResetEvent(false);
+            t = Task.Factory.StartNew(delegate { mre2.Set(); mre.WaitOne(); });
+            mre2.WaitOne();
+            mre2.Reset();
+            ts = t.Status;
+            if (ts != TaskStatus.Running)
+            {
+                Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Running:    > FAILED.  Expected Running status, got {0}", ts));
+            }
+            if (t.IsCompleted)
+            {
+                Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Running:    > FAILED.  Expected IsCompleted to be false."));
+            }
+
+            // Causes previously created task to finish
+            mre.Set();
+
+            //
+            // Test for TaskStatus.WaitingForChildrenToComplete
+            //
+            mre.Reset();
+            ManualResetEvent childCreatedMre = new ManualResetEvent(false);
+            t = Task.Factory.StartNew(delegate
+            {
+                Task child = Task.Factory.StartNew(delegate { mre.WaitOne(); }, TaskCreationOptions.AttachedToParent);
+                childCreatedMre.Set();
+            });
+
+            // This makes sure that task started running on a TP thread and created the child task
+            childCreatedMre.WaitOne();
+            // and this makes sure the delegate quit and the first stage of t.Finish() executed
+            while (t.Status == TaskStatus.Running) { }
+
+            ts = t.Status;
+            if (ts != TaskStatus.WaitingForChildrenToComplete)
+            {
+                Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > FAILED.  Expected WaitingForChildrenToComplete status, got {0}", ts));
+            }
+            if (t.IsCompleted)
+            {
+                Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > FAILED.  Expected IsCompleted to be false."));
+            }
+
+            // Causes previously created Task(s) to finish
+            mre.Set();
+
+            //
+            // Test for TaskStatus.RanToCompletion
+            //
+            {
+                t = Task.Factory.StartNew(delegate { });
+                t.Wait();
+                ts = t.Status;
+                if (ts != TaskStatus.RanToCompletion)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.RanToCompletion:    > FAILED.  Expected RanToCompletion status, got {0}", ts));
+                }
+                if (!t.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.RanToCompletion:    > FAILED.  Expected IsCompleted to be true."));
+                }
+            }
+        }
+
+        // Test that TaskStatus values returned from Task.Status are what they should be.
+        [Fact]
+        public static void RunTaskStatusTests_NegativeTests()
+        {
+            Task t;
+            TaskStatus ts;
+
+            //
+            // Test for TaskStatus.Canceled for post-start cancellation
+            //
+            {
+                ManualResetEvent taskStartMRE = new ManualResetEvent(false);
+                CancellationTokenSource cts = new CancellationTokenSource();
+                t = Task.Factory.StartNew(delegate
+                {
+                    taskStartMRE.Set();
+                    while (!cts.Token.IsCancellationRequested) { }
+                    throw new OperationCanceledException(cts.Token);
+                }, cts.Token);
+
+                taskStartMRE.WaitOne(); //make sure the task starts running before we cancel it
+                cts.Cancel();
+
+                // wait on the task to make sure the acknowledgement is fully processed
+                try { t.Wait(); }
+                catch { }
+
+                ts = t.Status;
+                if (ts != TaskStatus.Canceled)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Canceled:    > FAILED.  Expected Canceled status, got {0}", ts));
+                }
+                if (!t.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Canceled:    > FAILED.  Expected IsCompleted to be true."));
+                }
+            }
+
+            //
+            // Make sure that AcknowledgeCancellation() works correctly
+            //
+            {
+                CancellationTokenSource ctsource = new CancellationTokenSource();
+                CancellationToken ctoken = ctsource.Token;
+
+                t = Task.Factory.StartNew(delegate
+                {
+                    while (!ctoken.IsCancellationRequested) { }
+                    throw new OperationCanceledException(ctoken);
+                }, ctoken);
+                ctsource.Cancel();
+
+                try { t.Wait(); }
+                catch { }
+
+                ts = t.Status;
+                if (ts != TaskStatus.Canceled)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - AcknowledgeCancellation:     > FAILED.  Expected Canceled after AcknowledgeCancellation, got {0}", ts));
+                }
+            }
+
+            // Test that cancellation acknowledgement does not slip past WFCTC improperly
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                bool innerStarted = false;
+                SpinWait sw = new SpinWait();
+                ManualResetEvent mreFaulted = new ManualResetEvent(false);
+                mreFaulted.Reset();
+                Task tCanceled = Task.Factory.StartNew(delegate
+                {
+                    Task tInner = Task.Factory.StartNew(delegate { mreFaulted.WaitOne(); }, TaskCreationOptions.AttachedToParent);
+                    innerStarted = true;
+
+                    cts.Cancel();
+                    throw new OperationCanceledException(cts.Token);
+                }, cts.Token);
+
+                // and this makes sure the delegate quit and the first stage of t.Finish() executed
+                while (!innerStarted || tCanceled.Status == TaskStatus.Running)
+                    sw.SpinOnce();
+
+                ts = tCanceled.Status;
+                if (ts != TaskStatus.WaitingForChildrenToComplete)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > canceledTask FAILED.  Expected status = WaitingForChildrenToComplete, got {0}.", ts));
+                }
+                if (tCanceled.IsCanceled)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > canceledTask FAILED.  IsFaulted is true before children have completed."));
+                }
+                if (tCanceled.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > canceledTask FAILED.  IsCompleted is true before children have completed."));
+                }
+
+                mreFaulted.Set();
+                try { tCanceled.Wait(); }
+                catch { }
+            }
+
+            //
+            // Test for TaskStatus.Faulted
+            //
+            {
+                try
+                {
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationToken ct = cts.Token;
+                    t = Task.Factory.StartNew(delegate { throw new Exception("Some Unhandled Exception"); }, ct);
+                    t.Wait();
+                    cts.Cancel(); // Should have NO EFFECT on status, since task already completed/faulted.
+                }
+                catch { }
+                ts = t.Status;
+                if (ts != TaskStatus.Faulted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Faulted:    > FAILED.  Expected Faulted status, got {0}", ts));
+                }
+                if (!t.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Faulted:    > FAILED.  Expected IsCompleted to be true."));
+                }
+            }
+
+            // Test that an exception does not skip past WFCTC improperly
+            {
+                ManualResetEvent mreFaulted = new ManualResetEvent(false);
+                bool innerStarted = false;
+
+                // I Think SpinWait has been implemented on all future platforms because
+                // it is in the Contract.
+                // So we can ignore this Thread.SpinWait(100);
+
+                SpinWait sw = new SpinWait();
+                Task tFaulted = Task.Factory.StartNew(delegate
+                {
+                    Task tInner = Task.Factory.StartNew(delegate { mreFaulted.WaitOne(); }, TaskCreationOptions.AttachedToParent);
+                    innerStarted = true;
+                    throw new Exception("oh no!");
+                });
+
+                // this makes sure the delegate quit and the first stage of t.Finish() executed
+                while (!innerStarted || tFaulted.Status == TaskStatus.Running)
+                    sw.SpinOnce();
+                ts = tFaulted.Status;
+                if (ts != TaskStatus.WaitingForChildrenToComplete)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > faultedTask FAILED.  Expected status = WaitingForChildrenToComplete, got {0}.", ts));
+                }
+                if (tFaulted.IsFaulted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > faultedTask FAILED.  IsFaulted is true before children have completed."));
+                }
+                if (tFaulted.IsCompleted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.WaitingForChildrenToComplete:    > faultedTask FAILED.  IsCompleted is true before children have completed."));
+                }
+
+                mreFaulted.Set();
+                try { tFaulted.Wait(); }
+                catch { }
+            }
+
+            // Make sure that Faulted trumps Canceled
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                CancellationToken ct = cts.Token;
+
+                t = Task.Factory.StartNew(delegate
+                {
+                    Task exceptionalChild = Task.Factory.StartNew(delegate { throw new Exception("some exception"); }, TaskCreationOptions.AttachedToParent); //this should push an exception in our list
+
+                    cts.Cancel();
+                    throw new OperationCanceledException(ct);
+                }, ct);
+
+                try { t.Wait(); }
+                catch { }
+
+                ts = t.Status;
+                if (ts != TaskStatus.Faulted)
+                {
+                    Assert.True(false, string.Format("RunTaskStatusTests - TaskStatus.Faulted trumps Cancelled:    > FAILED.  Expected Faulted to trump Canceled"));
+                }
+            }
+        }
+
+        // Just runs a task and waits on it.
+        [Fact]
+        public static void RunTaskWaitTest()
+        {
+            // wait on non-exceptional task
+            Task t = Task.Factory.StartNew(delegate { });
+            t.Wait();
+
+            if (!t.IsCompleted)
+            {
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: task reported back !IsCompleted"));
+            }
+
+            // wait on non-exceptional delay started task
+            t = new Task(delegate { });
+            t.Start();
+            //Timer tmr = new Timer((o) => t.Start(), null, 100, Timeout.Infinite);
+            t.Wait();
+
+            // This keeps a reference to the Timer so that it does not get GC'd
+            // while we are waiting.
+            //tmr.Dispose();
+
+            if (!t.IsCompleted)
+            {
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: constructed task reported back !IsCompleted"));
+            }
+
+            // This keeps a reference to the Timer so that it does not get GC'd
+            // while we are waiting.
+            //tmr.Dispose();
+
+            // wait on a task that has children
+            int numChildren = 10;
+            CountdownEvent cntEv = new CountdownEvent(numChildren);
+            t = Task.Factory.StartNew(() =>
+            {
+                for (int i = 0; i < numChildren; i++)
+                    Task.Factory.StartNew(() => { cntEv.Signal(); }, TaskCreationOptions.AttachedToParent);
+            });
+
+            t.Wait();
+            if (!cntEv.IsSet)
+            {
+                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on a task with attached children returned before all children completed."));
+            }
+        }
+
         /// <summary>
         /// Custom task scheduler that cancels tasks after queuing but before execution.
         /// </summary>

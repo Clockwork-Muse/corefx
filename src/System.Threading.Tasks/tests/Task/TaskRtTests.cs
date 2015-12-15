@@ -809,6 +809,41 @@ namespace System.Threading.Tasks.Tests
             } // ending i-loop, for customTs setting
         }
 
+        [Fact]
+        public static void RunLongRunningTaskTests()
+        {
+            TaskScheduler tm = TaskScheduler.Default;
+            // This is computed such that this number of long-running tasks will result in a back-up
+            // without some assistance from TaskScheduler.RunBlocking() or TaskCreationOptions.LongRunning.
+
+            int ntasks = Environment.ProcessorCount * 2;
+
+            Task[] tasks = new Task[ntasks];
+            ManualResetEvent mre = new ManualResetEvent(false); // could just use a bool?
+            CountdownEvent cde = new CountdownEvent(ntasks); // to count the number of Tasks that successfully start
+            for (int i = 0; i < ntasks; i++)
+            {
+                tasks[i] = Task.Factory.StartNew(delegate
+                {
+                    cde.Signal(); // indicate that task has begun execution
+                    Debug.WriteLine("Signalled");
+                    while (!mre.WaitOne(0)) ;
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, tm);
+            }
+            bool waitSucceeded = cde.Wait(5000);
+            foreach (Task task in tasks)
+                Debug.WriteLine("Status: " + task.Status);
+            int count = cde.CurrentCount;
+            int initialCount = cde.InitialCount;
+            if (!waitSucceeded)
+            {
+                Debug.WriteLine("Wait failed. CDE.CurrentCount: {0}, CDE.Initial Count: {1}", count, initialCount);
+                Assert.True(false, string.Format("RunLongRunningTaskTests - TaskCreationOptions.LongRunning:    > FAILED.  Timed out waiting for tasks to start."));
+            }
+
+            mre.Set();
+            Task.WaitAll(tasks);
+        }
 
         [Fact]
         public static void RunHideSchedulerTests_Negative()
