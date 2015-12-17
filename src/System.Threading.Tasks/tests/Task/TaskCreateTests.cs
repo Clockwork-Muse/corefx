@@ -28,16 +28,21 @@ namespace System.Threading.Tasks.Tests
         {
             yield return new object[] { "Task<bool>", new Task<bool>(() => true) };
             yield return new object[] { "Task<bool>|CancellationToken", new Task<bool>(() => true, new CancellationTokenSource().Token) };
-            yield return new object[] { "Task<bool>|TaskCreationOptions", new Task<bool>(() => true, TaskCreationOptions.None) };
-            yield return new object[] { "Task<bool>|CancellationToken|TaskCreationOptions",
-                 new Task<bool>(() => true, new CancellationTokenSource().Token, TaskCreationOptions.None) };
             yield return new object[] { "Task<bool>|state", new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1) };
             yield return new object[] { "Task<bool>|state|CancellationToken",
                 new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token) };
-            yield return new object[] { "Task<bool>|state|TaskCreationOptions",
-                new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1, TaskCreationOptions.None) };
-            yield return new object[] { "Task<bool>|state|CancellationToken|TaskCreationOptions",
-                new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, TaskCreationOptions.None) };
+
+            foreach (TaskCreationOptions options in new[] { TaskCreationOptions.None, TaskCreationOptions.LongRunning })
+            {
+                yield return new object[] { "Task<bool>|" + options, new Task<bool>(() => true, options) };
+                yield return new object[] { "Task<bool>|CancellationToken|"+options,
+                 new Task<bool>(() => true, new CancellationTokenSource().Token, options) };
+
+                yield return new object[] { "Task<bool>|state|"+options,
+                new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1, options) };
+                yield return new object[] { "Task<bool>|state|CancellationToken|"+options,
+                new Task<bool>(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, options) };
+            }
         }
 
         /// <summary>
@@ -51,16 +56,21 @@ namespace System.Threading.Tasks.Tests
         {
             yield return new object[] { "Task", (Func<Flag, Task>)(flag => new Task(() => flag.Trip())) };
             yield return new object[] { "Task|CancellationToken", (Func<Flag, Task>)(flag => new Task(() => flag.Trip(), new CancellationTokenSource().Token)) };
-            yield return new object[] { "Task|TaskCreationOptions", (Func<Flag, Task>)(flag => new Task(() => flag.Trip(), TaskCreationOptions.None)) };
-            yield return new object[] { "Task|CancellationToken|TaskCreationOptions",
-                (Func<Flag, Task>)( flag => new Task(() => flag.Trip(), new CancellationTokenSource().Token, TaskCreationOptions.None)) };
             yield return new object[] { "Task|state", (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1)) };
             yield return new object[] { "Task|state|CancellationToken",
                 (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token)) };
-            yield return new object[] { "Task|state|TaskCreationOptions",
-                (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1, TaskCreationOptions.None)) };
-            yield return new object[] { "Task|state|CancellationToken|TaskCreationOptions",
-                (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token, TaskCreationOptions.None)) };
+
+            foreach (TaskCreationOptions options in new[] { TaskCreationOptions.None, TaskCreationOptions.LongRunning })
+            {
+                yield return new object[] { "Task|" + options, (Func<Flag, Task>)(flag => new Task(() => flag.Trip(), options)) };
+                yield return new object[] { "Task|CancellationToken|" + options,
+                (Func<Flag, Task>)( flag => new Task(() => flag.Trip(), new CancellationTokenSource().Token, options)) };
+
+                yield return new object[] { "Task|state|"+options,
+                (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1, options)) };
+                yield return new object[] { "Task|state|CancellationToken|"+options,
+                (Func<Flag, Task>)(flag => new Task(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token, options)) };
+            }
         }
 
         /// <summary>
@@ -74,29 +84,33 @@ namespace System.Threading.Tasks.Tests
         {
             yield return new object[] { "Task<bool>", Task<bool>.Factory.StartNew(() => true) };
             yield return new object[] { "Task<bool>|CancellationToken", Task<bool>.Factory.StartNew(() => true, new CancellationTokenSource().Token) };
-            yield return new object[] { "Task<bool>|TaskCreationOptions", Task<bool>.Factory.StartNew(() => true, TaskCreationOptions.None) };
-            yield return new object[] { "Task<bool>|CancellationToken|TaskCreationOptions",
-                Task<bool>.Factory.StartNew(() => true, new CancellationTokenSource().Token, TaskCreationOptions.None, TaskScheduler.Default) };
             yield return new object[] { "Task<bool>|state", Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1) };
             yield return new object[] { "Task<bool>|state|CancellationToken",
                 Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token) };
-            yield return new object[] { "Task<bool>|state|TaskCreationOptions",
-                Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, TaskCreationOptions.None) };
-            yield return new object[] { "Task<bool>|state|CancellationToken|TaskCreationOptions",
-                Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, TaskCreationOptions.None, TaskScheduler.Default) };
 
             yield return new object[] { "StartNew<bool>", Task.Factory.StartNew(() => true) };
             yield return new object[] { "StartNew<bool>|CancellationToken", Task.Factory.StartNew(() => true, new CancellationTokenSource().Token) };
-            yield return new object[] { "StartNew<bool>|TaskCreationOptions", Task.Factory.StartNew(() => true, TaskCreationOptions.None) };
-            yield return new object[] { "StartNew<bool>|CancellationToken|TaskCreationOptions|TaskScheduler",
-                Task.Factory.StartNew(() => true, new CancellationTokenSource().Token, TaskCreationOptions.None, TaskScheduler.Default) };
             yield return new object[] { "StartNew<bool>|state", Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1) };
             yield return new object[] { "StartNew<bool>|state|CancellationToken",
                 Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token) };
-            yield return new object[] { "StartNew<bool>|state|TaskCreationOptions",
-                Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, TaskCreationOptions.None) };
-            yield return new object[] { "StartNew<bool>|state|CancellationToken|TaskCreationOptions|TaskScheduler",
-                Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, TaskCreationOptions.None, TaskScheduler.Default) };
+            foreach (TaskCreationOptions options in new[] { TaskCreationOptions.None, TaskCreationOptions.LongRunning })
+            {
+                yield return new object[] { "Task<bool>|" + options, Task<bool>.Factory.StartNew(() => true, options) };
+                yield return new object[] { "Task<bool>|CancellationToken|"+options+"|TaskScheduler",
+                Task<bool>.Factory.StartNew(() => true, new CancellationTokenSource().Token, options, TaskScheduler.Default) };
+                yield return new object[] { "Task<bool>|state|"+options,
+                Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, options) };
+                yield return new object[] { "Task<bool>|state|CancellationToken|"+options+"|TaskScheduler",
+                Task<bool>.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, options, TaskScheduler.Default) };
+
+                yield return new object[] { "StartNew<bool>|" + options, Task.Factory.StartNew(() => true, options) };
+                yield return new object[] { "StartNew<bool>|CancellationToken|"+options+"|TaskScheduler",
+                Task.Factory.StartNew(() => true, new CancellationTokenSource().Token, options, TaskScheduler.Default) };
+                yield return new object[] { "StartNew<bool>|state|"+options,
+                Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, options) };
+                yield return new object[] { "StartNew<bool>|state|CancellationToken|"+options+"|TaskScheduler",
+                Task.Factory.StartNew(state => { Assert.Equal(1, state); return true; }, 1, new CancellationTokenSource().Token, options, TaskScheduler.Default) };
+            }
         }
 
         /// <summary>
@@ -110,16 +124,20 @@ namespace System.Threading.Tasks.Tests
         {
             yield return new object[] { "Task", (Func<Flag, Task>)(flag => Task.Factory.StartNew(() => flag.Trip())) };
             yield return new object[] { "Task|CancellationToken", (Func<Flag, Task>)(flag => Task.Factory.StartNew(() => flag.Trip(), new CancellationTokenSource().Token)) };
-            yield return new object[] { "Task|TaskCreationOptions", (Func<Flag, Task>)(flag => Task.Factory.StartNew(() => flag.Trip(), TaskCreationOptions.None)) };
-            yield return new object[] { "Task|CancellationToken|TaskCreationOptions|TaskScheduler",
-                (Func<Flag, Task>)( flag => Task.Factory.StartNew(() => flag.Trip(), new CancellationTokenSource().Token, TaskCreationOptions.None,TaskScheduler.Default)) };
             yield return new object[] { "Task|state", (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1)) };
             yield return new object[] { "Task|state|CancellationToken",
                 (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token)) };
-            yield return new object[] { "Task|state|TaskCreationOptions",
-                (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1, TaskCreationOptions.None)) };
-            yield return new object[] { "Task|state|CancellationToken|TaskCreationOptions|TaskScheduler",
-                (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token, TaskCreationOptions.None, TaskScheduler.Default)) };
+            foreach (TaskCreationOptions options in new[] { TaskCreationOptions.None, TaskCreationOptions.LongRunning })
+            {
+                yield return new object[] { "Task|" + options, (Func<Flag, Task>)(flag => Task.Factory.StartNew(() => flag.Trip(), options)) };
+                yield return new object[] { "Task|CancellationToken|"+options+"|TaskScheduler",
+                (Func<Flag, Task>)( flag => Task.Factory.StartNew(() => flag.Trip(), new CancellationTokenSource().Token, options,TaskScheduler.Default)) };
+
+                yield return new object[] { "Task|state|"+options,
+                (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1, options)) };
+                yield return new object[] { "Task|state|CancellationToken|"+options+"|TaskScheduler",
+                (Func<Flag, Task>)(flag => Task.Factory.StartNew(state => { Assert.Equal(1, state); flag.Trip(); }, 1, new CancellationTokenSource().Token, options, TaskScheduler.Default)) };
+            }
         }
 
         [Theory]
@@ -190,6 +208,8 @@ namespace System.Threading.Tasks.Tests
         {
             Flag flag = new Flag();
             Task task = create(flag);
+            // The returned task was previously started.  Attempting to start it a second time is an error.
+            Assert.Throws<InvalidOperationException>(() => task.Start());
             task.Wait();
             Assert.True(flag.IsTripped);
         }
@@ -222,176 +242,30 @@ namespace System.Threading.Tasks.Tests
             AssertCompletes(flag => Start(create(flag), TaskScheduler.Default));
         }
 
-        [Fact]
-        public static void RunRefactoringTests_NegativeTests()
+        [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void Task_ArgumentNull(TaskCreationOptions options)
         {
-            int temp = 0;
-            Task<int> f = Task.Factory.StartNew<int>((object i) => { return (int)i; }, 1, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Current);
-            Task t;
-            temp = f.Result;
-            if (temp != 1)
-            {
-                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew<int>(Func<object, int>, object, CT, options, TaskScheduler).    > FAILED.  Delegate failed to execute."));
-            }
+            Assert.Throws<ArgumentNullException>(() => { new Task(null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new CancellationToken(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new object(), new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new object(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(null, new object(), new CancellationToken(), options); });
 
-            f = new TaskCompletionSource<int>().Task;
-            try
-            {
-                f.Start();
-                Assert.True(false, string.Format("RunRefactoringTests - TaskCompletionSource<int>.Task (should throw exception):    > FAILED.  No exception thrown."));
-            }
-            catch (Exception)
-            {
-                //Assert.True(false, string.Format("    > caught exception: {0}", e.Message));
-            }
-
-            t = new Task(delegate { temp = 100; });
-            t.Start();
-            try
-            {
-                t.Start();
-                Assert.True(false, string.Format("RunRefactoringTests - Restarting Task:    > FAILED.  No exception thrown, when there should be."));
-            }
-            catch (Exception)
-            {
-                //Assert.True(false, string.Format("    > caught exception: {0}", e.Message));
-            }
-
-            // If we don't do this, the asynchronous setting of temp=100 in the delegate could
-            // screw up some tests below.
-            t.Wait();
-
-            try
-            {
-                t = new Task(delegate { temp = 100; }, (TaskCreationOptions)10000);
-                Assert.True(false, string.Format("RunRefactoringTests - Illegal Options CTor Task:    > FAILED.  No exception thrown, when there should be."));
-            }
-            catch (Exception) { }
-
-            try
-            {
-                t = new Task(null);
-                Assert.True(false, string.Format("RunRefactoringTests - Task ctor w/ null action:    > FAILED.  No exception thrown."));
-            }
-            catch (Exception) { }
-
-            try
-            {
-                t = Task.Factory.StartNew(null);
-                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew() w/ Null Action:    > FAILED.  No exception thrown."));
-            }
-            catch (Exception) { }
-
-            t = new Task(delegate { });
-            Task t2 = t.ContinueWith(delegate { });
-            try
-            {
-                t2.Start();
-                Assert.True(false, string.Format("RunRefactoringTests - Task.Start() on Continuation Task:    > FAILED.  No exception thrown."));
-            }
-            catch (Exception) { }
-
-            t = new Task(delegate { });
-            try
-            {
-                t.Start(null);
-                Assert.True(false, string.Format("RunRefactoringTests - Task.Start() with null taskScheduler:    > FAILED.  No exception thrown."));
-            }
-            catch (Exception) { }
-
-            t = Task.Factory.StartNew(delegate { });
-            try
-            {
-                t = Task.Factory.StartNew(delegate { }, CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null);
-                Assert.True(false, string.Format("RunRefactoringTests - Task.Factory.StartNew() with null taskScheduler:    > FAILED.  No exception thrown."));
-            }
-            catch (Exception) { }
-        }
-
-        // Test overloads for Task<T> ctor, Task<T>.Factory.StartNew that accept a TaskCreationOptions param
-        [Fact]
-        public static void TestTaskTConstruction_tco()
-        {
-            for (int i = 0; i < 2; i++)
-            {
-                bool useCtor = (i == 0);
-                for (int j = 0; j < 2; j++)
-                {
-                    bool useObj = (j == 0);
-                    object refObj = new object();
-                    for (int k = 0; k < 2; k++)
-                    {
-                        bool useLongRunning = (k == 0);
-                        Task<int> f1;
-                        TaskCreationOptions tco = useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None;
-
-                        if (useCtor)
-                        {
-                            if (useObj)
-                            {
-                                f1 = new Task<int>(obj => 42, refObj, tco);
-                            }
-                            else
-                            {
-                                f1 = new Task<int>(() => 42, tco);
-                            }
-                            f1.Start();
-                        }
-                        else
-                        {
-                            if (useObj)
-                            {
-                                f1 = Task<int>.Factory.StartNew(obj => 42, refObj, tco);
-                            }
-                            else
-                            {
-                                f1 = Task<int>.Factory.StartNew(() => 42, tco);
-                            }
-                        }
-
-                        Exception ex = null;
-                        int result = 0;
-                        try
-                        {
-                            result = f1.Result;
-                        }
-                        catch (Exception e)
-                        {
-                            ex = e;
-                        }
-
-                        object asyncState = ((IAsyncResult)f1).AsyncState;
-
-                        Assert.True((ex == null), "TestTaskTConstruction_tco:  Did not expect an exception");
-                        Assert.True(f1.CreationOptions == tco, "TestTaskTConstruction_tco:  Mis-matched TaskCreationOptions");
-                        Assert.True(result == 42, "TestTaskTConstruction_tco:  Expected valid result");
-                        Assert.True(useObj || (asyncState == null), "TestTaskTConstruction_tco:  Expected non-null AsyncState only if object overload was used");
-                        Assert.True((!useObj) || (asyncState == refObj), "TestTaskTConstruction_tco:  Wrong AsyncState value returned");
-                    }
-                }
-            }
-        }
-
-        [Fact]
-        public static void RunBasicFutureTest_Negative()
-        {
-            //
-            // future basic functionality tests
-            //
-
-            // Test exceptional conditions
-            Assert.Throws<ArgumentNullException>(
-               () => { new Task<int>((Func<int>)null); });
-            Assert.Throws<ArgumentNullException>(
-               () => { new Task<int>((Func<object, int>)null, new object()); });
-            Assert.Throws<ArgumentNullException>(
-               () => { Task<int>.Factory.StartNew((Func<int>)null); });
-            Assert.Throws<ArgumentNullException>(
-               () => { Task<int>.Factory.StartNew((Func<int>)null, CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null); });
-            Assert.Throws<ArgumentNullException>(
-               () => { Task<int>.Factory.StartNew((Func<object, int>)null, new object()); });
-            Assert.Throws<ArgumentNullException>(
-               () => { Task<int>.Factory.StartNew((obj) => 42, new object(), CancellationToken.None, TaskCreationOptions.None, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new CancellationToken(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new object(), new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new object(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(null, new object(), new CancellationToken(), options); });
         }
 
         private static T Start<T>(T task) where T : Task

@@ -108,6 +108,46 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void StartNew_ArgumentNull(TaskCreationOptions options)
+        {
+            // Specifically enclosing in brackets to avoid the await, and make it clear the exception is thrown on method invocation.
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new object(), new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new object(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(() => { }, new CancellationToken(), options, null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(null, new object(), new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(i => { }, new object(), new CancellationToken(), options, null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<int>)null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<int>)null, new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<int>)null, options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<object, int>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<object, int>)null, new object(), new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<object, int>)null, new object(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<int>)null, new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(() => 0, new CancellationToken(), options, null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew((Func<object, int>)null, new object(), new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory().StartNew(i => 0, new object(), new CancellationToken(), options, null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new object(), new CancellationToken()); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new object(), options); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(() => 0, new CancellationToken(), options, null); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(null, new object(), new CancellationToken(), options, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new TaskFactory<int>().StartNew(i => 0, new object(), new CancellationToken(), options, null); });
+        }
+
+        [Theory]
         [MemberData("TaskFactory_Data")]
         public static void TaskFactory_Create_Test(TaskFactory factory, TaskScheduler scheduler, TaskCreationOptions? creation, CancellationToken? token, TaskContinuationOptions? continuation)
         {
@@ -115,6 +155,20 @@ namespace System.Threading.Tasks.Tests
             Assert.Equal(creation ?? TaskCreationOptions.None, factory.CreationOptions);
             Assert.Equal(continuation ?? TaskContinuationOptions.None, factory.ContinuationOptions);
             Assert.Equal(token ?? CancellationToken.None, factory.CancellationToken);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.None)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.LongRunning)]
+        [InlineData(TaskCreationOptions.LongRunning, TaskContinuationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning, TaskContinuationOptions.LongRunning)]
+        public static void TaskFactory_NullScheduler(TaskCreationOptions creationOptions, TaskContinuationOptions continuationOptions)
+        {
+            // Supplied scheduler can be null.
+            Assert.NotNull(new TaskFactory(null));
+            Assert.NotNull(new TaskFactory(new CancellationToken(), creationOptions, continuationOptions, null));
+            Assert.NotNull(new TaskFactory<int>(null));
+            Assert.NotNull(new TaskFactory<int>(new CancellationToken(), creationOptions, continuationOptions, null));
         }
 
         [Theory]
