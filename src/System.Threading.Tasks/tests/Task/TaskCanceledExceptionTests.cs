@@ -8,31 +8,52 @@ namespace System.Threading.Tasks.Tests
     public static class TaskCanceledExceptionTests
     {
         [Fact]
-        public static void RunTaskCanceledExceptionTests()
+        public static void TaskCanceledException_Constructor_Default()
         {
-            TaskCanceledException tce = null;
+            TaskCanceledException tce = new TaskCanceledException();
 
-            // Test empty constructor
-            tce = new TaskCanceledException();
-            Assert.Null(tce.Task); // , "RunTaskCanceledExceptionTests:  Expected null Task prop after empty ctor")
-            Assert.Null(tce.InnerException); // , "RunTaskCanceledExceptionTests:  Expected null InnerException prop after empty ctor")
+            Assert.NotNull(tce);
+            Assert.Null(tce.Task);
+            Assert.Null(tce.InnerException);
+        }
 
-            string message = "my exception message";
-            tce = new TaskCanceledException(message);
-            Assert.True(tce.Message.Equals(message), "RunTaskCanceledExceptionTests:  Message != string passed to ctor(string)");
-            Assert.Null(tce.Task); // , "RunTaskCanceledExceptionTests:  Expected null Task prop after ctor(string)")
-            Assert.Null(tce.InnerException); // , "RunTaskCanceledExceptionTests:  Expected null InnerException prop after ctor(string)")
+        [Fact]
+        public static void TaskCanceledException_Constructor_Message()
+        {
+            string message = "message";
 
-            Task t1 = Task.Factory.StartNew(() => { });
-            tce = new TaskCanceledException(t1);
-            Assert.True(tce.Task == t1, "RunTaskCanceledExceptionTests:  Task != task passed to ctor(Task)");
-            Assert.Null(tce.InnerException); // , "RunTaskCanceledExceptionTests:  Expected null InnerException prop after ctor(Task)")
+            TaskCanceledException tce = new TaskCanceledException(message);
 
-            InvalidOperationException ioe = new InvalidOperationException();
-            tce = new TaskCanceledException(message, ioe);
-            Assert.True(tce.Message.Equals(message), "RunTaskCanceledExceptionTests:  Message != string passed to ctor(string, exception)");
-            Assert.Null(tce.Task); // , "RunTaskCanceledExceptionTests:  Expected null Task prop after ctor(string, exception)")
-            Assert.True(tce.InnerException == ioe, "RunTaskCanceledExceptionTests:  InnerException != exception passed to ctor(string, exception)");
+            Assert.NotNull(tce);
+            Assert.Null(tce.Task);
+            Assert.Null(tce.InnerException);
+            Assert.Equal(message, tce.Message);
+        }
+
+        [Fact]
+        public static void TaskCanceledException_Constructor_InnerException()
+        {
+            string message = "message";
+            DeliberateTestException inner = new DeliberateTestException();
+
+            TaskCanceledException tce = new TaskCanceledException(message, inner);
+
+            Assert.NotNull(tce);
+            Assert.Null(tce.Task);
+            Assert.Equal(inner, tce.InnerException);
+            Assert.Equal(message, tce.Message);
+        }
+
+        [Fact]
+        public static void TaskCanceledException_Task()
+        {
+            Task task = new Task(() => { });
+
+            TaskCanceledException tce = new TaskCanceledException(task);
+
+            Assert.NotNull(tce);
+            Assert.Equal(task, tce.Task);
+            Assert.Null(tce.InnerException);
         }
     }
 }
