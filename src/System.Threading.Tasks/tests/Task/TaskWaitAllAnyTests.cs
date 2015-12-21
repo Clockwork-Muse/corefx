@@ -121,6 +121,45 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
+        /// <summary>
+        /// Gets a row of data for canceled task tests.
+        /// </summary>
+        /// Shorter waits can't be used due to potential for race conditions
+        /// The format is:
+        ///  1. The number of tasks
+        ///  2. The first task to complete
+        /// <returns>A row of test data.</returns>
+        public static IEnumerable<object[]> Task_Specific_Data()
+        {
+            foreach (int tasks in new[] { 0, 1, 2, 10, 64, 100 })
+            {
+                foreach (int completes in new[] { 0, tasks / 2, tasks - 1 })
+                {
+                    yield return new object[] { tasks, completes };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a row of data for specific tasks finishing for WaitAny tests.
+        /// </summary>
+        /// Shorter waits can't be used due to potential for race conditions
+        /// The format is:
+        ///  1. Number of tasks
+        ///  2. Which task completes
+        ///  3. The maximum duration to wait (-1 means no timeout)
+        /// <returns>A row of test data.</returns>
+        public static IEnumerable<object[]> Task_Wait_Specific_Data()
+        {
+            foreach (object[] data in Task_Specific_Data())
+            {
+                foreach (TimeSpan wait in new[] { Waits.Infinite, TimeSpan.FromMinutes(1) })
+                {
+                    yield return new object[] { data[0], data[1], wait };
+                }
+            }
+        }
+
         [Theory]
         [MemberData("Task_Data")]
         public static void Task_WaitAll(TimeSpan[] loads)
@@ -134,6 +173,20 @@ namespace System.Threading.Tasks.Tests
         public static void Task_WaitAll_Longrunning(TimeSpan[] loads)
         {
             Task_WaitAll(loads);
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAll_CancelTask(TimeSpan[] loads)
+        {
+            WaitAll_CancelTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAll(tasks));
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAll_FaultTask(TimeSpan[] loads)
+        {
+            WaitAll_FaultTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAll(tasks));
         }
 
         [Theory]
@@ -159,6 +212,20 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAll_Token_CancelTask(TimeSpan[] loads)
+        {
+            WaitAll_CancelTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAll(tasks, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAll_Token_FaultTask(TimeSpan[] loads)
+        {
+            WaitAll_FaultTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAll(tasks, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_WaitAll_TimeSpan(TimeSpan[] loads, TimeSpan wait)
         {
@@ -174,6 +241,20 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_Timespan_CancelTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_CancelTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, w));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_TimeSpan_FaultTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_FaultTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, w));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_WaitAll_Millisecond(TimeSpan[] loads, TimeSpan wait)
         {
@@ -186,6 +267,20 @@ namespace System.Threading.Tasks.Tests
         public static void Task_WaitAll_Millisecond_Longrunning(TimeSpan[] loads, TimeSpan wait)
         {
             Task_WaitAll_Millisecond(loads, wait);
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_Millisecond_CancelTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_CancelTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, (int)w.TotalMilliseconds));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_Millisecond_FaultTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_FaultTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, (int)w.TotalMilliseconds));
         }
 
         [Theory]
@@ -208,6 +303,20 @@ namespace System.Threading.Tasks.Tests
         public static void Task_WaitAll_Millisecond_Token_Cancel(TimeSpan[] loads, TimeSpan wait)
         {
             Cancel(loads, wait, (tasks, w, token) => Task.WaitAll(tasks, (int)w.TotalMilliseconds, token));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_Millisecond_Token_CancelTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_CancelTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, (int)w.TotalMilliseconds, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAll_Millisecond_Token_FaultTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAll_FaultTask(loads, wait, (tasks, w) => Task.WaitAll(tasks, (int)w.TotalMilliseconds, new CancellationTokenSource().Token));
         }
 
         [Fact]
@@ -255,6 +364,32 @@ namespace System.Threading.Tasks.Tests
             Assert.Throws<OperationCanceledException>(() => Task.WaitAll(new[] { Task.CompletedTask }, -1, new CancellationToken(true)));
         }
 
+        [Fact]
+        public static void WaitAll_CanceledTask()
+        {
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)) }));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)) }, 1));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, 1));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)) }, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)) }, 1, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<TaskCanceledException>(() => Task.WaitAll(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, 1, new CancellationToken(false)));
+        }
+
+        [Fact]
+        public static void WaitAll_FaultedTask()
+        {
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()) }));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()) }, 1));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, 1));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()) }, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()) }, 1, new CancellationToken(false)));
+            Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.WaitAll(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, 1, new CancellationToken(false)));
+        }
+
         private static void WaitAll(TimeSpan[] loads, TimeSpan wait, Func<Task[], TimeSpan, bool> call)
         {
             TimeSpan minimum = loads.Any() ? loads.Max() : TimeSpan.Zero;
@@ -295,6 +430,93 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
+        private static void WaitAll_CancelTask(TimeSpan[] loads, TimeSpan wait, Action<Task[], TimeSpan> call)
+        {
+            using (Barrier b = new Barrier(loads.Length + 1))
+            {
+                CancellationTokenSource source = new CancellationTokenSource();
+                int canceledIndex = loads.Length / 2;
+
+                Task[] tasks = loads.Select((load, index) => new TaskFactory().StartNew(() =>
+                {
+                    b.SignalAndWait();
+                    if (index == canceledIndex)
+                    {
+                        source.Cancel();
+                        source.Token.ThrowIfCancellationRequested();
+                    }
+                    // Spin until the cancellation is requested.
+                    SpinWait.SpinUntil(() => source.IsCancellationRequested);
+                }, source.Token)).ToArray();
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                if (tasks.Any())
+                {
+                    // Exception isn't thrown until all tasks complete.
+                    Functions.AssertThrowsWrapped<TaskCanceledException>(() => call(tasks, wait));
+
+                    Task canceledTask = tasks[canceledIndex];
+                    Assert.True(canceledTask.IsCompleted);
+                    Assert.True(canceledTask.IsCanceled);
+                    Assert.False(canceledTask.IsFaulted);
+                    Assert.Equal(TaskStatus.Canceled, canceledTask.Status);
+                    timer.Stop();
+                }
+                else
+                {
+                    // If no tasks, the call completes immediately, and successfully.
+                    call(tasks, wait);
+                    timer.Stop();
+                }
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+            }
+        }
+
+        private static void WaitAll_FaultTask(TimeSpan[] loads, TimeSpan wait, Action<Task[], TimeSpan> call)
+        {
+            using (Barrier b = new Barrier(loads.Length + 1))
+            {
+                Flag flag = new Flag();
+                int faultedIndex = loads.Length / 2;
+
+                Task[] tasks = loads.Select((load, index) => new TaskFactory().StartNew(() =>
+                {
+                    b.SignalAndWait();
+                    if (index == faultedIndex)
+                    {
+                        flag.Trip();
+                        throw new DeliberateTestException();
+                    }
+                    SpinWait.SpinUntil(() => flag.IsTripped);
+                })).ToArray();
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                if (tasks.Any())
+                {
+                    // Exception isn't thrown until all tasks complete.
+                    Functions.AssertThrowsWrapped<DeliberateTestException>(() => call(tasks, wait));
+
+                    Task faultedTask = tasks[faultedIndex];
+                    Assert.True(faultedTask.IsCompleted);
+                    Assert.False(faultedTask.IsCanceled);
+                    Assert.True(faultedTask.IsFaulted);
+                    Assert.Equal(TaskStatus.Faulted, faultedTask.Status);
+                    timer.Stop();
+                }
+                else
+                {
+                    // If no tasks, the call completes immediately, and successfully.
+                    call(tasks, wait);
+                    timer.Stop();
+                }
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+            }
+        }
+
         [Theory]
         [MemberData("Task_Data")]
         public static void Task_WaitAny(TimeSpan[] loads)
@@ -308,6 +530,28 @@ namespace System.Threading.Tasks.Tests
         public static void Task_WaitAny_Longrunning(TimeSpan[] loads)
         {
             Task_WaitAny(loads);
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAny_CancelTask(TimeSpan[] loads)
+        {
+            WaitAny_CancelTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAny(tasks));
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAny_FaultTask(TimeSpan[] loads)
+        {
+            WaitAny_FaultTask(loads, Waits.Infinite, (tasks, w) => Task.WaitAny(tasks));
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData("Task_Specific_Data")]
+        public static void Task_WaitAny_SpecificTask(int taskCount, int completes)
+        {
+            WaitAny_SpecificTask(taskCount, completes, Waits.Infinite, (tasks, w) => Task.WaitAny(tasks));
         }
 
         [Theory]
@@ -333,6 +577,28 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAny_Token_CancelTask(TimeSpan[] loads)
+        {
+            WaitAny_CancelTask(loads, Waits.Infinite, (tasks, i) => Task.WaitAny(tasks, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
+        [MemberData("Task_Data")]
+        public static void Task_WaitAny_Token_FaultTask(TimeSpan[] loads)
+        {
+            WaitAny_FaultTask(loads, Waits.Infinite, (tasks, w) => Task.WaitAny(tasks, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData("Task_Specific_Data")]
+        public static void Task_WaitAny_Token_SpecificTask(int taskCount, int completes)
+        {
+            WaitAny_SpecificTask(taskCount, completes, Waits.Infinite, (tasks, w) => Task.WaitAny(tasks, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_WaitAny_TimeSpan(TimeSpan[] loads, TimeSpan wait)
         {
@@ -348,6 +614,28 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_TimeSpan_CancelTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAny_CancelTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, w));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_TimeSpan_FaultTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAny_FaultTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, w));
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData("Task_Wait_Specific_Data")]
+        public static void Task_WaitAny_TimeSpan_SpecificTask(int taskCount, int completes, TimeSpan wait)
+        {
+            WaitAny_SpecificTask(taskCount, completes, wait, (tasks, w) => Task.WaitAny(tasks, w));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_WaitAny_Millisecond(TimeSpan[] loads, TimeSpan wait)
         {
@@ -360,6 +648,28 @@ namespace System.Threading.Tasks.Tests
         public static void Task_WaitAny_Millisecond_Longrunning(TimeSpan[] loads, TimeSpan wait)
         {
             Task_WaitAny_Millisecond(loads, wait);
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_Millisecond_CancelTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAny_CancelTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_Millisecond_FaultTask(TimeSpan[] loads, TimeSpan wait)
+        {
+            WaitAny_FaultTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds));
+        }
+
+        [Theory]
+        [OuterLoop]
+        [MemberData("Task_Wait_Specific_Data")]
+        public static void Task_WaitAny_Millisecond_SpecificTask(int taskCount, int completes, TimeSpan wait)
+        {
+            WaitAny_SpecificTask(taskCount, completes, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds));
         }
 
         [Theory]
@@ -384,443 +694,26 @@ namespace System.Threading.Tasks.Tests
             Cancel(loads, wait, (tasks, w, token) => Task.WaitAny(tasks, (int)w.TotalMilliseconds, token));
         }
 
-        [Fact]
-        public static void RunTaskWaitAnyTests()
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_Millisecond_Token_CancelTask(TimeSpan[] loads, TimeSpan wait)
         {
-            int numCores = Environment.ProcessorCount;
-
-            // Basic tests w/ <64 tasks
-            CoreWaitAnyTest(0, new bool[] { }, -1);
-            CoreWaitAnyTest(0, new bool[] { true }, 0);
-            CoreWaitAnyTest(0, new bool[] { true, false, false, false }, 0);
-
-            if (numCores > 1)
-                CoreWaitAnyTest(0, new bool[] { false, true, false, false }, 1);
-
-            // Tests w/ >64 tasks, w/ winning index >= 64
-            CoreWaitAnyTest(100, new bool[] { true }, 100);
-            CoreWaitAnyTest(100, new bool[] { true, false, false, false }, 100);
-            if (numCores > 1)
-                CoreWaitAnyTest(100, new bool[] { false, true, false, false }, 101);
-
-            // Test w/ >64 tasks, w/ winning index < 64
-            CoreWaitAnyTest(62, new bool[] { true, false, false, false }, 62);
-
-            // Test w/ >64 tasks, w/ winning index = WaitHandle.WaitTimeout
-            CoreWaitAnyTest(WaitHandle.WaitTimeout, new bool[] { true, false, false, false }, WaitHandle.WaitTimeout);
-
-            // Test that already-completed task is returned
-            Task t1 = Task.Factory.StartNew(delegate { });
-            t1.Wait();
-            int tonsOfIterations = 100000;
-            // these are cold tasks... should not have started or run at all.
-            Task t2 = new Task(delegate { for (int i = 0; i < tonsOfIterations; i++) { } });
-            Task t3 = new Task(delegate { for (int i = 0; i < tonsOfIterations; i++) { } });
-            Task t4 = new Task(delegate { for (int i = 0; i < tonsOfIterations; i++) { } });
-
-            if (Task.WaitAny(t2, t1, t3, t4) != 1)
-            {
-                Assert.True(false, string.Format("RunTaskWaitAnyTests:    > FAILED pre-completed task test.  Wrong index returned."));
-            }
+            WaitAny_CancelTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds, new CancellationTokenSource().Token));
         }
 
-        public static void CoreWaitAnyTest(int fillerTasks, bool[] finishMeFirst, int nExpectedReturnCode)
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_WaitAny_Millisecond_Token_FaultTask(TimeSpan[] loads, TimeSpan wait)
         {
-            // We need to do this test in a local TM with # or threads equal to or greater than
-            // the number of tasks requested. Otherwise this test can undeservedly fail on dual proc machines
-
-            Task[] tasks = new Task[fillerTasks + finishMeFirst.Length];
-
-            // Create filler tasks
-            for (int i = 0; i < fillerTasks; i++) tasks[i] = new Task(delegate { }); // don't start it -- that might make things complicated
-
-            // Create a MRES to gate the finishers
-            ManualResetEvent mres = new ManualResetEvent(false);
-
-            // Create worker tasks
-            for (int i = 0; i < finishMeFirst.Length; i++)
-            {
-                tasks[fillerTasks + i] = Task.Factory.StartNew(delegate (object obj)
-                {
-                    bool finishMe = (bool)obj;
-                    if (!finishMe) mres.WaitOne();
-                }, (object)finishMeFirst[i]);
-            }
-
-            int staRetCode = 0;
-            int retCode = Task.WaitAny(tasks);
-
-            Task t = new Task(delegate
-            {
-                staRetCode = Task.WaitAny(tasks);
-            });
-            t.Start();
-            t.Wait();
-
-            // Release the waiters.
-            mres.Set();
-
-            try
-            {
-                // get rid of the filler tasks by starting them and doing a WaitAll
-                for (int i = 0; i < fillerTasks; i++) tasks[i].Start();
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException)
-            {
-                // We expect some OCEs if we canceled some filler tasks.
-                if (fillerTasks == 0) throw; // we shouldn't see an exception if we don't have filler tasks.
-            }
-
-            if (retCode != nExpectedReturnCode)
-            {
-                Debug.WriteLine("CoreWaitAnyTest:    Testing WaitAny with {0} tasks, expected winner = {1}",
-                    fillerTasks + finishMeFirst.Length, nExpectedReturnCode);
-                Assert.True(false, string.Format("CoreWaitAnyTest:   > error: WaitAny() return code not matching expected."));
-            }
-
-            if (staRetCode != nExpectedReturnCode)
-            {
-                Debug.WriteLine("CoreWaitAnyTest:    Testing WaitAny with {0} tasks, expected winner = {1}",
-                    fillerTasks + finishMeFirst.Length, nExpectedReturnCode);
-                Assert.True(false, string.Format("CoreWaitAnyTest:   > error: WaitAny() return code not matching expected for STA Thread."));
-            }
+            WaitAny_FaultTask(loads, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds, new CancellationTokenSource().Token));
         }
 
-        // basic WaitAny validations with Cancellation token
-        [Fact]
-        public static void RunTaskWaitAnyTests_WithCancellationTokenTests()
-        {
-            //Test stuck tasks + a cancellation token
-            var mre = new ManualResetEvent(false);
-            var tokenSrc = new CancellationTokenSource();
-            var task1 = Task.Factory.StartNew(() => mre.WaitOne());
-            var task2 = Task.Factory.StartNew(() => mre.WaitOne());
-            var waiterTask = Task.Factory.StartNew(() => Task.WaitAny(new Task[] { task1, task2 }, tokenSrc.Token));
-            tokenSrc.Cancel();
-            Assert.Throws<AggregateException>(() => waiterTask.Wait());
-            mre.Set();
-
-            Action<int, bool, bool> testWaitAnyWithCT = delegate (int nTasks, bool useSTA, bool preCancel)
-            {
-                Task[] tasks = new Task[nTasks];
-
-                CancellationTokenSource ctsForTaskCancellation = new CancellationTokenSource();
-                for (int i = 0; i < nTasks; i++) { tasks[i] = new Task(delegate { }, ctsForTaskCancellation.Token); }
-
-                CancellationTokenSource ctsForWaitAny = new CancellationTokenSource();
-                if (preCancel)
-                    ctsForWaitAny.Cancel();
-                CancellationToken ctForWaitAny = ctsForWaitAny.Token;
-                Task cancelThread = null;
-                Task thread = new Task(delegate
-                {
-                    try
-                    {
-                        Task.WaitAny(tasks, ctForWaitAny);
-                        Debug.WriteLine("WaitAnyWithCancellationTokenTests:    --Testing {0} pending tasks, STA={1}, preCancel={2}", nTasks, useSTA, preCancel);
-                        Assert.True(false, string.Format("WaitAnyWithCancellationTokenTests:    > error: WaitAny() w/ {0} tasks should have thrown OCE, threw no exception.", nTasks));
-                    }
-                    catch (OperationCanceledException) { }
-                    catch
-                    {
-                        Debug.WriteLine("WaitAnyWithCancellationTokenTests:    --Testing {0} pending tasks, STA={1}, preCancel={2}", nTasks, useSTA, preCancel);
-                        Assert.True(false, string.Format("    > error: WaitAny() w/ {0} tasks should have thrown OCE, threw different exception.", nTasks));
-                    }
-                });
-
-                if (!preCancel)
-                {
-                    cancelThread = new Task(delegate
-                    {
-                        for (int i = 0; i < 200; i++) { }
-                        ctsForWaitAny.Cancel();
-                    });
-                    cancelThread.Start();
-                }
-                thread.Start();
-                //thread.Join();
-                Task.WaitAll(thread);
-
-                //if (!preCancel) cancelThread.Join();
-
-                try
-                {
-                    for (int i = 0; i < nTasks; i++) tasks[i].Start(); // get rid of all tasks we created
-                    Task.WaitAll(tasks);
-                }
-                catch
-                {
-                } // ignore any exceptions
-            };
-
-            // Test some small number of tasks
-            testWaitAnyWithCT(2, false, true);
-            testWaitAnyWithCT(2, false, false);
-            testWaitAnyWithCT(2, true, true);
-            testWaitAnyWithCT(2, true, false);
-
-            // Now test for 63 tasks (max w/o overflowing w/ CT)
-            testWaitAnyWithCT(63, false, true);
-            testWaitAnyWithCT(63, false, false);
-            testWaitAnyWithCT(63, true, true);
-            testWaitAnyWithCT(63, true, false);
-
-            // Now test for 100 tasks (overflows WaitAny())
-            testWaitAnyWithCT(100, false, true);
-            testWaitAnyWithCT(100, false, false);
-            testWaitAnyWithCT(100, true, true);
-            testWaitAnyWithCT(100, true, false);
-        }
-
-        // creates a large number of tasks and does WaitAll on them from a thread of the specified apartment state
-        [Fact]
+        [Theory]
         [OuterLoop]
-        public static void RunTaskWaitAllTests()
+        [MemberData("Task_Wait_Specific_Data")]
+        public static void Task_WaitAny_Millisecond_Token_SpecificTask(int taskCount, int completes, TimeSpan wait)
         {
-            Assert.Throws<ArgumentNullException>(() => Task.WaitAll((Task[])null));
-            Assert.Throws<ArgumentException>(() => Task.WaitAll(new Task[] { null }));
-            Assert.Throws<ArgumentOutOfRangeException>(() => Task.WaitAll(new Task[] { Task.Factory.StartNew(() => { }) }, -2));
-            Assert.Throws<ArgumentOutOfRangeException>(() => Task.WaitAll(new Task[] { Task.Factory.StartNew(() => { }) }, TimeSpan.FromMilliseconds(-2)));
-
-            RunTaskWaitAllTest(false, 1);
-            RunTaskWaitAllTest(false, 10);
-        }
-
-        public static void RunTaskWaitAllTest(bool staThread, int nTaskCount)
-        {
-            string methodInput = string.Format("RunTaskWaitAllTest:  > WaitAll() Tests for aptState={0}, task count={1}", staThread ? "MTA" : "STA", nTaskCount);
-            string excpMsg = "foo";
-
-            int middleCeiling = (int)(nTaskCount / 2);
-            if ((nTaskCount % 2) == 1)
-                middleCeiling = middleCeiling + 1;
-            int nFirstHalfCount = middleCeiling;
-            int nSecondHalfCount = nTaskCount - nFirstHalfCount;
-
-            //CancellationTokenSource ctsForSleepAndAckCancelAction = null; // this needs to be allocated every time sleepAndAckCancelAction is about to be used
-            Action<object> emptyAction = delegate (Object o) { };
-            Action<object> sleepAction = delegate (Object o) { for (int i = 0; i < 200; i++) { } };
-            Action<object> longAction = delegate (Object o) { for (int i = 0; i < 400; i++) { } };
-
-            Action<object> sleepAndAckCancelAction = delegate (Object o)
-            {
-                CancellationToken ct = (CancellationToken)o;
-                while (!ct.IsCancellationRequested)
-                { }
-                throw new OperationCanceledException(ct);   // acknowledge
-            };
-            Action<object> exceptionThrowAction = delegate (Object o) { throw new Exception(excpMsg); };
-
-            Exception e = null;
-
-            // test case 1: trying: WaitAll() on a group of already completed tasks
-            DoRunTaskWaitAllTest(staThread, nTaskCount, emptyAction, true, false, 0, null, 5000, ref e);
-
-            if (e != null)
-            {
-                Assert.True(false, string.Format(methodInput + ":  RunTaskWaitAllTest:  > error: WaitAll() threw exception unexpectedly."));
-            }
-
-            // test case 2: WaitAll() on a a group of tasks half of which is already completed, half of which is blocked when we start the wait
-            //Debug.WriteLine("  > trying: WaitAll() on a a group of tasks half of which is already ");
-            //Debug.WriteLine("  >         completed, half of which is blocked when we start the wait");
-            DoRunTaskWaitAllTest(staThread, nFirstHalfCount, emptyAction, true, false, nSecondHalfCount, sleepAction, 5000, ref e);
-
-            if (e != null)
-            {
-                Assert.True(false, string.Format(methodInput + " : RunTaskWaitAllTest:  > error: WaitAll() threw exception unexpectedly."));
-            }
-
-            // test case 3: WaitAll() on a a group of tasks half of which is Canceled, half of which is blocked when we start the wait
-            //Debug.WriteLine("  > trying: WaitAll() on a a group of tasks half of which is Canceled,");
-            //Debug.WriteLine("  >         half of which is blocked when we start the wait");
-            DoRunTaskWaitAllTest(staThread, nFirstHalfCount, sleepAndAckCancelAction, false, true, nSecondHalfCount, emptyAction, 5000, ref e);
-
-            if (!(e is AggregateException) || !((e as AggregateException).InnerExceptions[0] is TaskCanceledException))
-            {
-                Assert.True(false, string.Format(methodInput + " : RunTaskWaitAllTest:  > error: WaitAll() didn't throw TaskCanceledException while waiting on a group of already canceled tasks.> {0}", e));
-            }
-
-            // test case 4: WaitAll() on a a group of tasks some of which throws an exception
-            //Debug.WriteLine("  > trying: WaitAll() on a a group of tasks some of which throws an exception");
-            DoRunTaskWaitAllTest(staThread, nFirstHalfCount, exceptionThrowAction, false, false, nSecondHalfCount, sleepAction, 5000, ref e);
-
-            if (!(e is AggregateException) || ((e as AggregateException).InnerExceptions[0].Message != excpMsg))
-            {
-                Assert.True(false, string.Format(methodInput + "RunTaskWaitAllTest:  > error: WaitAll() didn't throw AggregateException while waiting on a group tasks that throw. > {0}", e));
-            }
-
-            //////////////////////////////////////////////////////
-            //
-            // WaitAll with CancellationToken tests
-            //
-
-            // test case 5: WaitAll() on a group of already completed tasks with an unsignaled token
-            // this should complete cleanly with no exception
-            DoRunTaskWaitAllTestWithCancellationToken(staThread, nTaskCount, true, false, 5000, -1, ref e);
-
-            if (e != null)
-            {
-                Assert.True(false, string.Format(methodInput + ": RunTaskWaitAllTest:  > error: WaitAll() threw exception unexpectedly."));
-            }
-
-            // test case 6: WaitAll() on a group of already completed tasks with an already signaled token
-            // this should throw OCE
-            DoRunTaskWaitAllTestWithCancellationToken(staThread, nTaskCount, true, false, 5000, 0, ref e);
-
-            if (!(e is OperationCanceledException))
-            {
-                Assert.True(false, string.Format(methodInput + "RunTaskWaitAllTest:  > error: WaitAll() should have thrown OperationCanceledException."));
-            }
-
-            // test case 7: WaitAll() on a group of long tasks with a token that gets canceled after a delay
-            // this should throw OCE
-            DoRunTaskWaitAllTestWithCancellationToken(staThread, nTaskCount, false, false, 5000, 25, ref e);
-
-            if (!(e is OperationCanceledException))
-            {
-                Assert.True(false, string.Format(methodInput + "RunTaskWaitAllTest:  > error: WaitAll() should have thrown OperationCanceledException."));
-            }
-        }
-
-        //
-        // the core function for WaitAll tests. Takes 2 types of actions to create tasks, how many copies of each task type
-        // to create, whether to wait for the completion of the first group, etc
-        //
-        public static void DoRunTaskWaitAllTest(bool staThread,
-                                                    int numTasksType1,
-                                                    Action<object> taskAction1,
-                                                    bool bWaitOnAct1,
-                                                    bool bCancelAct1,
-                                                    int numTasksType2,
-                                                    Action<object> taskAction2,
-                                                    int timeoutForWaitThread,
-                                                    ref Exception refWaitAllException)
-        {
-            int numTasks = numTasksType1 + numTasksType2;
-            Task[] tasks = new Task[numTasks];
-
-            //
-            // Test case 1: WaitAll() on a mix of already completed tasks and yet blocked tasks
-            //
-            for (int i = 0; i < numTasks; i++)
-            {
-                if (i < numTasksType1)
-                {
-                    CancellationTokenSource taskCTS = new CancellationTokenSource();
-
-                    //Both setting the cancellationtoken to the new task, and passing it in as the state object so that the delegate can acknowledge using it
-                    tasks[i] = Task.Factory.StartNew(taskAction1, (object)taskCTS.Token, taskCTS.Token);
-                    if (bCancelAct1) taskCTS.Cancel();
-
-                    try
-                    {
-                        if (bWaitOnAct1) tasks[i].Wait();
-                    }
-                    catch { }
-                }
-                else
-                {
-                    tasks[i] = Task.Factory.StartNew(taskAction2, null);
-                }
-            }
-
-            refWaitAllException = null;
-            Exception waitAllException = null;
-            Task t1 = new Task(delegate ()
-            {
-                try
-                {
-                    Task.WaitAll(tasks);
-                }
-                catch (Exception e)
-                {
-                    waitAllException = e;
-                }
-            });
-
-            t1.Start();
-            t1.Wait();
-
-            refWaitAllException = waitAllException;
-        }
-
-        //
-        // the core function for WaitAll tests. Takes 2 types of actions to create tasks, how many copies of each task type
-        // to create, whether to wait for the completion of the first group, etc
-        //
-        public static void DoRunTaskWaitAllTestWithCancellationToken(bool staThread,
-                                                    int numTasks,
-                                                    bool bWaitOnAct1,
-                                                    bool bCancelAct1,
-                                                    int timeoutForWaitThread,
-                                                    int timeToSignalCancellationToken, // -1 never, 0 beforehand, >0 for a delay
-                                                    ref Exception refWaitAllException)
-        {
-            Task[] tasks = new Task[numTasks];
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-            CancellationToken ct = cts.Token;
-            if (timeToSignalCancellationToken == 0)
-                cts.Cancel();
-
-            ManualResetEvent mres = new ManualResetEvent(false);
-
-            // If timeToSignalCancellationToken is 0, it means that we pre-signal the cancellation token
-            // If timeToSignalCancellationToken is -1, it means that we will never signal the cancellation token
-            // Either way, it is OK for the tasks to complete ASAP.
-            if (timeToSignalCancellationToken <= 0) mres.Set();
-
-            //
-            // Test case 1: WaitAll() on a mix of already completed tasks and yet blocked tasks
-            //
-            for (int i = 0; i < numTasks; i++)
-            {
-                CancellationTokenSource taskCTS = new CancellationTokenSource();
-
-                //Both setting the cancellationtoken to the new task, and passing it in as the state object so that the delegate can acknowledge using it
-                tasks[i] = Task.Factory.StartNew((obj) => { mres.WaitOne(); }, (object)taskCTS.Token, taskCTS.Token);
-                if (bWaitOnAct1) tasks[i].Wait();
-                if (bCancelAct1) taskCTS.Cancel();
-            }
-
-            if (timeToSignalCancellationToken > 0)
-            {
-                Task cancelthread = new Task(delegate ()
-                {
-                    //for (int i = 0; i < timeToSignalCancellationToken; i++) { }
-                    Task.Delay(timeToSignalCancellationToken);
-                    cts.Cancel();
-                });
-                cancelthread.Start();
-            }
-
-            refWaitAllException = null;
-            Exception waitAllException = null;
-            Task t1 = new Task(delegate ()
-            {
-                try
-                {
-                    Task.WaitAll(tasks, ct);
-                }
-                catch (Exception e)
-                {
-                    waitAllException = e;
-                }
-            });
-
-            t1.Start();
-            t1.Wait();
-
-            refWaitAllException = waitAllException;
-
-            // If we delay-signalled the cancellation token, then it is OK to let the tasks complete now.
-            if (timeToSignalCancellationToken > 0)
-            {
-                mres.Set();
-                Task.WaitAll(tasks);
-            }
+            WaitAny_SpecificTask(taskCount, completes, wait, (tasks, w) => Task.WaitAny(tasks, (int)w.TotalMilliseconds, new CancellationTokenSource().Token));
         }
 
         [Fact]
@@ -866,6 +759,40 @@ namespace System.Threading.Tasks.Tests
             // Cancellation status is checked _before_ wait/completion
             Assert.Throws<OperationCanceledException>(() => Task.WaitAny(new[] { new Task(() => { /* nothing */ }) }, 0, new CancellationToken(true)));
             Assert.Throws<OperationCanceledException>(() => Task.WaitAny(new[] { Task.CompletedTask }, -1, new CancellationToken(true)));
+        }
+
+        [Fact]
+        public static void WaitAny_CanceledTask()
+        {
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)) }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromCanceled(new CancellationToken(true)) }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)) }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromCanceled(new CancellationToken(true)) }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)) }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromCanceled(new CancellationToken(true)) }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)) }, 1, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromCanceled(new CancellationToken(true)) }, 1, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromCanceled(new CancellationToken(true)), Task.CompletedTask }, 1, new CancellationToken(false)));
+        }
+
+        [Fact]
+        public static void WaitAny_FaultedTask()
+        {
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()) }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromException(new DeliberateTestException()) }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()) }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromException(new DeliberateTestException()) }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, 1));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()) }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromException(new DeliberateTestException()) }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()) }, 1, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.CompletedTask, Task.FromException(new DeliberateTestException()) }, 1, new CancellationToken(false)));
+            Assert.Equal(0, Task.WaitAny(new[] { Task.FromException(new DeliberateTestException()), Task.CompletedTask }, 1, new CancellationToken(false)));
         }
 
         private static void WaitAny(TimeSpan[] loads, TimeSpan wait, Func<Task[], TimeSpan, int> call)
@@ -937,6 +864,138 @@ namespace System.Threading.Tasks.Tests
 
                 // Whether wait succeeded or not is immaterial to task completion
                 Assert.All(tasks, task => Assert.Equal(TaskStatus.Running, task.Status));
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+                flag.Trip();
+            }
+        }
+
+        private static void WaitAny_CancelTask(TimeSpan[] loads, TimeSpan wait, Func<Task[], TimeSpan, int> call)
+        {
+            using (Barrier b = new Barrier(loads.Length + 1))
+            {
+                Flag flag = new Flag();
+                CancellationTokenSource source = new CancellationTokenSource();
+                int canceledIndex = loads.Length / 2;
+
+                Task[] tasks = loads.Select((load, index) => new TaskFactory().StartNew(() =>
+                {
+                    b.SignalAndWait();
+                    if (index == canceledIndex)
+                    {
+                        source.Cancel();
+                        source.Token.ThrowIfCancellationRequested();
+                    }
+
+                    SpinWait.SpinUntil(() => flag.IsTripped);
+                }, source.Token)).ToArray();
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                int completed = call(tasks, wait);
+                timer.Stop();
+
+                if (tasks.Any())
+                {
+                    Assert.Equal(canceledIndex, completed);
+
+                    Task canceledTask = tasks[canceledIndex];
+                    Assert.True(canceledTask.IsCompleted);
+                    Assert.True(canceledTask.IsCanceled);
+                    Assert.False(canceledTask.IsFaulted);
+                    Assert.Equal(TaskStatus.Canceled, canceledTask.Status);
+                    Functions.AssertThrowsWrapped<TaskCanceledException>(() => canceledTask.Wait());
+                }
+                else
+                {
+                    Assert.Equal(-1, completed);
+                }
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+                flag.Trip();
+            }
+        }
+
+        private static void WaitAny_FaultTask(TimeSpan[] loads, TimeSpan wait, Func<Task[], TimeSpan, int> call)
+        {
+            using (Barrier b = new Barrier(loads.Length + 1))
+            {
+                Flag flag = new Flag();
+                int faultedIndex = loads.Length / 2;
+
+                Task[] tasks = loads.Select((load, index) => new TaskFactory().StartNew(() =>
+                {
+                    b.SignalAndWait();
+                    if (index == faultedIndex)
+                    {
+                        throw new DeliberateTestException();
+                    }
+
+                    SpinWait.SpinUntil(() => flag.IsTripped);
+                })).ToArray();
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                int completed = call(tasks, wait);
+                timer.Stop();
+
+                if (tasks.Any())
+                {
+                    Assert.Equal(faultedIndex, completed);
+
+                    Task faultedTask = tasks[faultedIndex];
+                    Assert.True(faultedTask.IsCompleted);
+                    Assert.False(faultedTask.IsCanceled);
+                    Assert.True(faultedTask.IsFaulted);
+                    Assert.Equal(TaskStatus.Faulted, faultedTask.Status);
+                    Functions.AssertThrowsWrapped<DeliberateTestException>(() => faultedTask.Wait());
+                }
+                else
+                {
+                    Assert.Equal(-1, completed);
+                }
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+                flag.Trip();
+            }
+        }
+
+        private static void WaitAny_SpecificTask(int taskCount, int completedIndex, TimeSpan wait, Func<Task[], TimeSpan, int> call)
+        {
+            using (Barrier b = new Barrier(taskCount + 1))
+            {
+                Flag flag = new Flag();
+                CancellationTokenSource source = new CancellationTokenSource();
+
+                Task[] tasks = Enumerable.Range(0, taskCount).Select((load, index) => new TaskFactory().StartNew(() =>
+                {
+                    b.SignalAndWait();
+                    if (index != completedIndex)
+                    {
+                        SpinWait.SpinUntil(() => flag.IsTripped);
+                    }
+                })).ToArray();
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                int completed = call(tasks, wait);
+                timer.Stop();
+
+                if (tasks.Any())
+                {
+                    Assert.Equal(completedIndex, completed);
+
+                    Task faultedTask = tasks[completedIndex];
+                    Assert.True(faultedTask.IsCompleted);
+                    Assert.False(faultedTask.IsCanceled);
+                    Assert.False(faultedTask.IsFaulted);
+                    Assert.Equal(TaskStatus.RanToCompletion, faultedTask.Status);
+                    Assert.All(tasks.Where((t, index) => index != completedIndex), task => Assert.Equal(TaskStatus.Running, task.Status));
+                }
+                else
+                {
+                    Assert.Equal(-1, completed);
+                }
+
                 ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
                 flag.Trip();
             }
