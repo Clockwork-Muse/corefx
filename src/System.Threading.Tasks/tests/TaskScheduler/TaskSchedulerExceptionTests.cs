@@ -8,25 +8,48 @@ namespace System.Threading.Tasks.Tests
     public static class TaskSchedulerExceptionTests
     {
         [Fact]
-        public static void RunTaskSchedulerExceptionTests()
+        public static void TaskSchedulerException_Constructor_Default()
         {
-            TaskSchedulerException tse = null;
+            TaskSchedulerException tse = new TaskSchedulerException();
 
-            tse = new TaskSchedulerException();
-            Assert.Null(tse.InnerException); // , "RunTaskSchedulerExceptionTests:  Expected InnerException==null after empty ctor")
+            Assert.NotNull(tse);
+            Assert.Null(tse.InnerException);
+        }
 
-            InvalidOperationException ioe = new InvalidOperationException();
-            tse = new TaskSchedulerException(ioe);
-            Assert.True(tse.InnerException == ioe, "RunTaskSchedulerExceptionTests:  Expected InnerException == ioe passed to ctor(ex)");
+        [Fact]
+        public static void TaskSchedulerException_Constructor_Message()
+        {
+            string message = "message";
 
-            string message = "my exception message";
-            tse = new TaskSchedulerException(message);
-            Assert.Null(tse.InnerException); // , "RunTaskSchedulerExceptionTests:  Expected InnerException==null after ctor(string)")
-            Assert.True(tse.Message.Equals(message), "RunTaskSchedulerExceptionTests:  Expected Message = message passed to ctor(string)");
+            TaskSchedulerException tse = new TaskSchedulerException(message);
 
-            tse = new TaskSchedulerException(message, ioe);
-            Assert.True(tse.InnerException == ioe, "RunTaskSchedulerExceptionTests:  Expected InnerException == ioe passed to ctor(string, ex)");
-            Assert.True(tse.Message.Equals(message), "RunTaskSchedulerExceptionTests:  Expected Message = message passed to ctor(string, ex)");
+            Assert.NotNull(tse);
+            Assert.Null(tse.InnerException);
+            Assert.Equal(message, tse.Message);
+        }
+
+        [Fact]
+        public static void TaskSchedulerException_Constructor_InnerException()
+        {
+            DeliberateTestException inner = new DeliberateTestException();
+
+            TaskSchedulerException tse = new TaskSchedulerException(inner);
+
+            Assert.NotNull(tse);
+            Assert.Equal(inner, tse.InnerException);
+        }
+
+        [Fact]
+        public static void TaskSchedulerException_Constructor_Message_InnerException()
+        {
+            string message = "message";
+            DeliberateTestException inner = new DeliberateTestException();
+
+            TaskSchedulerException tse = new TaskSchedulerException(message, inner);
+
+            Assert.NotNull(tse);
+            Assert.Equal(inner, tse.InnerException);
+            Assert.Equal(message, tse.Message);
         }
     }
 }
