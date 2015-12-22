@@ -2,12 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Xunit;
-using System;
 // TPL namespaces
-using System.Threading;
-using System.Threading.Tasks;
 using System.Diagnostics;
+using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
@@ -62,11 +59,11 @@ namespace System.Threading.Tasks.Tests
                 // Some "cancel" continuations will be queued when the token is signaled
                 ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 1000, cancelAfter: 100);
 
-                // All "leftover" continuations should be queued when antecedent completes 
+                // All "leftover" continuations should be queued when antecedent completes
                 // There may or may not be leftover "cancel" continuations when the antecedent completes
                 ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 10000, cancelAfter: 9900);
 
-                // All continuations should be queued when antecedent completes 
+                // All continuations should be queued when antecedent completes
                 ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 10000, cancelAfter: 10000);
             }
         }
@@ -88,7 +85,6 @@ namespace System.Threading.Tasks.Tests
             // Pre-increment the dontCounts for pre-canceled continuations to make final check easier
             // (i.e., all counts should be 1 at end).
             int[] doneCount = { 0, 0, 1, 0, 1, 0 };
-
 
             Task t1 = new Task(delegate { doneCount[0]++; });
             Task c1 = t1.ContinueWith(_ => { doneCount[1]++; });
@@ -375,7 +371,6 @@ namespace System.Threading.Tasks.Tests
                                 antecedent.Wait();
                             }
 
-
                             for (int x = 0; x < 2; x++)
                             {
                                 bool continuationIsFuture = (x == 0);
@@ -466,7 +461,6 @@ namespace System.Threading.Tasks.Tests
                                         else antecedent = new Task(() => { });
                                     }
 
-
                                     if (continuationIsFuture)
                                     {
                                         if (antecedentIsFuture)
@@ -538,7 +532,6 @@ namespace System.Threading.Tasks.Tests
                                         if (antecedentIsFuture) antecedent = new Task<int>(() => 5);
                                         else antecedent = new Task(() => { });
                                     }
-
 
                                     if (continuationIsFuture)
                                     {
@@ -716,7 +709,7 @@ namespace System.Threading.Tasks.Tests
             //// Test against buggy schedulers
             ////
             //
-            //// More specifically, ensure that inline execution via synchronous continuations 
+            //// More specifically, ensure that inline execution via synchronous continuations
             //// causes the predictable exception from the NonInliningTaskScheduler.
             //
             //Task<Task> t1 = null;
@@ -724,7 +717,7 @@ namespace System.Threading.Tasks.Tests
             //Task hanging1 = new TaskFactory(new NonInliningTaskScheduler()).StartNew(() =>
             //{
             //    // To avoid fast-path optimizations in Unwrap, ensure that both inner
-            //    // and outer tasks are not completed before Unwrap is called.  (And a 
+            //    // and outer tasks are not completed before Unwrap is called.  (And a
             //    // good way to do this is to ensure that they are not even started!)
             //    Task inner = new Task(() => { });
             //    t1 = new Task<Task>(() => inner, TaskCreationOptions.AttachedToParent);
@@ -749,7 +742,7 @@ namespace System.Threading.Tasks.Tests
             //Task hanging2 = new TaskFactory(new NonInliningTaskScheduler()).StartNew(() =>
             //{
             //    // To avoid fast-path optimizations in Unwrap, ensure that both inner
-            //    // and outer tasks are not completed before Unwrap is called.  (And a 
+            //    // and outer tasks are not completed before Unwrap is called.  (And a
             //    // good way to do this is to ensure that they are not even started!)
             //    Task<int> inner = new Task<int>(() => 10);
             //    Task<Task<int>> f1 = new Task<Task<int>>(() => inner, TaskCreationOptions.AttachedToParent);
@@ -788,7 +781,7 @@ namespace System.Threading.Tasks.Tests
             Task c8 = null;
 
             Action doExc = delegate { throw new Exception("some exception"); };
-            // 
+            //
             // Exception tests
             //
             taskRoot = new Task(delegate { });
@@ -840,7 +833,6 @@ namespace System.Threading.Tasks.Tests
             {
                 Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Exception thrown while waiting for task/futureRoots used for exception testing: {0}", e));
             }
-
 
             //
             // Exception handling
@@ -1036,7 +1028,6 @@ namespace System.Threading.Tasks.Tests
             {
                 Assert.True(false, string.Format("RunContinuationCancelTest_State    > Failed!  t2 should not have run."));
             }, stateParam, ctsForT2.Token);
-
 
             Task t3 = t2.ContinueWith((ContinuedTask) =>
             {
@@ -1276,6 +1267,119 @@ namespace System.Threading.Tasks.Tests
             task2.Wait();
         }
 
+        [Fact]
+        public static void RunBasicFutureTest_Negative()
+        {
+            Task<int> future = new Task<int>(() => 1);
+            Assert.ThrowsAsync<ArgumentNullException>(
+               () => future.ContinueWith((Action<Task<int>, Object>)null, null, CancellationToken.None));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith((Action<Task<int>, Object>)null, null, TaskContinuationOptions.None));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith((Action<Task<int>, Object>)null, null, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith((t, s) => { }, null, CancellationToken.None, TaskContinuationOptions.None, null));
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+               () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, CancellationToken.None));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, TaskContinuationOptions.None));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default));
+            Assert.ThrowsAsync<ArgumentNullException>(
+              () => future.ContinueWith<int>((t, s) => 2, null, CancellationToken.None, TaskContinuationOptions.None, null));
+        }
+
+        // Test that exceptions are properly wrapped when thrown in various scenarios.
+        // Make sure that "indirect" logic does not add superfluous exception wrapping.
+        [Fact]
+        public static void RunExceptionWrappingTest()
+        {
+            Action throwException = delegate { throw new InvalidOperationException(); };
+
+            //
+            //
+            // Test Monadic ContinueWith()
+            //
+            //
+            Action<Task, string> mcwExceptionChecker = delegate (Task mcwTask, string scenario)
+            {
+                try
+                {
+                    mcwTask.Wait();
+                    Assert.True(false, string.Format("RunExceptionWrappingTest:    > FAILED.  Wait-on-continuation did not throw for {0}", scenario));
+                }
+                catch (Exception e)
+                {
+                    int levels = NestedLevels(e);
+                    if (levels != 2)
+                    {
+                        Assert.True(false, string.Format("RunExceptionWrappingTest:    > FAILED.  Exception had {0} levels instead of 2 for {1}.", levels, scenario));
+                    }
+                }
+            };
+
+            // Test mcw off of Task
+            Task t = Task.Factory.StartNew(delegate { });
+
+            // Throw in the returned future
+            Task<int> mcw1 = t.ContinueWith(delegate (Task antecedent)
+            {
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    throw new InvalidOperationException();
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw1, "Task antecedent, throw in ContinuationFunction");
+
+            // Throw in the continuationFunction
+            Task<int> mcw2 = t.ContinueWith(delegate (Task antecedent)
+            {
+                throwException();
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    return 0;
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw2, "Task antecedent, throw in returned Future");
+
+            // Test mcw off of future
+            Task<int> f = Task<int>.Factory.StartNew(delegate { return 0; });
+
+            // Throw in the returned future
+            mcw1 = f.ContinueWith(delegate (Task<int> antecedent)
+            {
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    throw new InvalidOperationException();
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw1, "Future antecedent, throw in ContinuationFunction");
+
+            // Throw in the continuationFunction
+            mcw2 = f.ContinueWith(delegate (Task<int> antecedent)
+            {
+                throwException();
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    return 0;
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw2, "Future antecedent, throw in returned Future");
+        }
+
         #endregion
 
         #region Helper Methods
@@ -1320,7 +1424,7 @@ namespace System.Threading.Tasks.Tests
                         // Use both synchronous and asynchronous continuations
                         TaskContinuationOptions tco = ((i % 2) == 0) ? TaskContinuationOptions.None : TaskContinuationOptions.ExecuteSynchronously;
 
-                        // The cancelAction should run exactly once per "to be canceled" continuation -- either in the first continuation or, 
+                        // The cancelAction should run exactly once per "to be canceled" continuation -- either in the first continuation or,
                         // if the first continuation is canceled, in the second continuation.
                         cancelContinuations[i] = antecedent.ContinueWith(cancelAction, cts.Token, tco, TaskScheduler.Default)
                             .ContinueWith(cancelAction, tco | TaskContinuationOptions.OnlyOnCanceled);
@@ -1439,6 +1543,23 @@ namespace System.Threading.Tasks.Tests
 
                 return Task<T>.Factory.StartNew(() => { if (!cts.IsCancellationRequested) cts.Cancel(); return default(T); }, cts.Token);
             }
+        }
+
+        private static int NestedLevels(Exception e)
+        {
+            int levels = 0;
+            while (e != null)
+            {
+                levels++;
+                AggregateException ae = e as AggregateException;
+                if (ae != null)
+                {
+                    e = ae.InnerExceptions[0];
+                }
+                else break;
+            }
+
+            return levels;
         }
 
         #endregion

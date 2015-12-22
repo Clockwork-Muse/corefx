@@ -54,6 +54,103 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
+        public static void RunLongRunningTaskTests()
+        {
+            TaskScheduler tm = TaskScheduler.Default;
+            // This is computed such that this number of long-running tasks will result in a back-up
+            // without some assistance from TaskScheduler.RunBlocking() or TaskCreationOptions.LongRunning.
+
+            int ntasks = Environment.ProcessorCount * 2;
+
+            Task[] tasks = new Task[ntasks];
+            ManualResetEvent mre = new ManualResetEvent(false); // could just use a bool?
+            CountdownEvent cde = new CountdownEvent(ntasks); // to count the number of Tasks that successfully start
+            for (int i = 0; i < ntasks; i++)
+            {
+                tasks[i] = Task.Factory.StartNew(delegate
+                {
+                    cde.Signal(); // indicate that task has begun execution
+                    Debug.WriteLine("Signalled");
+                    while (!mre.WaitOne(0)) ;
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, tm);
+            }
+            bool waitSucceeded = cde.Wait(5000);
+            foreach (Task task in tasks)
+                Debug.WriteLine("Status: " + task.Status);
+            int count = cde.CurrentCount;
+            int initialCount = cde.InitialCount;
+            if (!waitSucceeded)
+            {
+                Debug.WriteLine("Wait failed. CDE.CurrentCount: {0}, CDE.Initial Count: {1}", count, initialCount);
+                Assert.True(false, string.Format("RunLongRunningTaskTests - TaskCreationOptions.LongRunning:    > FAILED.  Timed out waiting for tasks to start."));
+            }
+
+            mre.Set();
+            Task.WaitAll(tasks);
+        }
+
+        [Fact]
+        public static void RunHideSchedulerTests()
+        {
+            TaskScheduler[] schedules = new TaskScheduler[2];
+            schedules[0] = TaskScheduler.Default;
+
+            for (int i = 0; i < schedules.Length; i++)
+            {
+                bool useCustomTs = (i == 1);
+                TaskScheduler outerTs = schedules[i]; // useCustomTs ? customTs : TaskScheduler.Default;
+                // If we are running CoreCLR, then schedules[1] = null, and we should continue in this case.
+                if (i == 1 && outerTs == null)
+                    continue;
+
+                for (int j = 0; j < 2; j++)
+                {
+                    bool hideScheduler = (j == 0);
+                    TaskCreationOptions creationOptions = hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None;
+                    TaskContinuationOptions continuationOptions = hideScheduler ? TaskContinuationOptions.HideScheduler : TaskContinuationOptions.None;
+                    TaskScheduler expectedInnerTs = hideScheduler ? TaskScheduler.Default : outerTs;
+
+                    Action<string> commonAction = delegate (string setting)
+                    {
+                        Assert.Equal(TaskScheduler.Current, expectedInnerTs);
+
+                        // And just for completeness, make sure that inner tasks are started on the correct scheduler
+                        TaskScheduler tsInner1 = null, tsInner2 = null;
+
+                        Task tInner = Task.Factory.StartNew(() =>
+                        {
+                            tsInner1 = TaskScheduler.Current;
+                        });
+                        Task continuation = tInner.ContinueWith(_ =>
+                        {
+                            tsInner2 = TaskScheduler.Current;
+                        });
+
+                        Task.WaitAll(tInner, continuation);
+
+                        Assert.Equal(tsInner1, expectedInnerTs);
+                        Assert.Equal(tsInner2, expectedInnerTs);
+                    };
+
+                    Task outerTask = Task.Factory.StartNew(() =>
+                    {
+                        commonAction("task");
+                    }, CancellationToken.None, creationOptions, outerTs);
+                    Task outerContinuation = outerTask.ContinueWith(_ =>
+                    {
+                        commonAction("continuation");
+                    }, CancellationToken.None, continuationOptions, outerTs);
+
+                    Task.WaitAll(outerTask, outerContinuation);
+
+                    // Check that the option was internalized by the task/continuation
+                    Assert.True(hideScheduler == ((outerTask.CreationOptions & TaskCreationOptions.HideScheduler) != 0), "RunHideSchedulerTests:  FAILED.  CreationOptions mismatch on outerTask");
+                    Assert.True(hideScheduler == ((outerContinuation.CreationOptions & TaskCreationOptions.HideScheduler) != 0), "RunHideSchedulerTests:  FAILED.  CreationOptions mismatch on outerContinuation");
+                } // end j-loop, for hideScheduler setting
+            } // ending i-loop, for customTs setting
+        }
+
+        [Fact]
         public static void BuggyScheduler_Start_Test()
         {
             BuggyTaskScheduler bts = new BuggyTaskScheduler();

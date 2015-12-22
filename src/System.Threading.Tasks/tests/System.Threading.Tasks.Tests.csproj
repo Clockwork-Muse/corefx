@@ -22,6 +22,10 @@
     <Compile Include="Helpers\Workloads.cs" />
     <Compile Include="IAsyncWaitHandleTests.cs" />
     <Compile Include="TaskScheduler\TaskSchedulerExceptionTests.cs" />
+    <Compile Include="Task\ChildTaskTests.cs" />
+    <Compile Include="Task\DelayTests.cs" />
+    <Compile Include="Task\FromResultTests.cs" />
+    <Compile Include="Task\RunTests.cs" />
     <Compile Include="Task\TaskCanceledExceptionTests.cs" />
     <Compile Include="XunitAssemblyAttributes.cs" />
     <Compile Include="UnwrapTests.cs" />
@@ -44,7 +48,6 @@
     <Compile Include="TaskFactory\TaskContinueWhenAnyTests.cs" />
     <Compile Include="TaskFactory\TaskContinueWhenAllTests.cs" />
     <Compile Include="Task\TaskWaitTests.cs" />
-    <Compile Include="Task\TaskRtTests.cs" />
     <Compile Include="TaskCompletionSourceTests.cs" />
     <Compile Include="Task\TaskAPMTests.cs" />
     <!-- TaskFactory -->
