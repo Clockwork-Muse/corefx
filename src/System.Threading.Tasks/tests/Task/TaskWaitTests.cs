@@ -87,6 +87,22 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void Task_Wait_CancelTask(TaskCreationOptions option)
+        {
+            Wait_CancelTask(Waits.Infinite, option, (task, w) => task.Wait());
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void Task_Wait_FaultTask(TaskCreationOptions option)
+        {
+            Wait_FaultTask(Waits.Infinite, option, (task, w) => task.Wait());
+        }
+
+        [Theory]
         [MemberData("Task_Data")]
         public static void Task_Wait_Token(TimeSpan load, TaskCreationOptions option)
         {
@@ -116,6 +132,22 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void Task_Wait_Token_CancelTask(TaskCreationOptions option)
+        {
+            Wait_CancelTask(Waits.Infinite, option, (task, w) => task.Wait(new CancellationToken(false)));
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.None)]
+        [InlineData(TaskCreationOptions.LongRunning)]
+        public static void Task_Wait_Token_FaultTask(TaskCreationOptions option)
+        {
+            Wait_FaultTask(Waits.Infinite, option, (task, w) => task.Wait(new CancellationToken(false)));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_Wait_TimeSpan(TimeSpan load, TimeSpan wait, TaskCreationOptions option)
         {
@@ -137,6 +169,20 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_TimeSpan_CancelTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_CancelTask(wait, option, (task, w) => task.Wait(w));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_TimeSpan_FaultTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_FaultTask(wait, option, (task, w) => task.Wait(w));
+        }
+
+        [Theory]
         [MemberData("Task_Wait_Data")]
         public static void Task_Wait_Millisecond(TimeSpan load, TimeSpan wait, TaskCreationOptions option)
         {
@@ -155,6 +201,20 @@ namespace System.Threading.Tasks.Tests
         public static void Task_Wait_Child_Millisecond(TimeSpan load, TimeSpan wait, TaskCreationOptions option)
         {
             Wait_Child(load, wait, option, (task, w) => task.Wait((int)w.TotalMilliseconds));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_Millisecond_CancelTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_CancelTask(wait, option, (task, w) => task.Wait((int)w.TotalMilliseconds));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_Millisecond_FaultTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_FaultTask(wait, option, (task, w) => task.Wait((int)w.TotalMilliseconds));
         }
 
         [Theory]
@@ -183,6 +243,20 @@ namespace System.Threading.Tasks.Tests
         public static void Task_Wait_Millisecond_Token_Cancel(TimeSpan wait, TaskCreationOptions option)
         {
             Cancel(wait, option, (task, w, token) => task.Wait((int)w.TotalMilliseconds, token));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_Millisecond_Token_CancelTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_CancelTask(wait, option, (task, w) => task.Wait((int)w.TotalMilliseconds, new CancellationToken(false)));
+        }
+
+        [Theory]
+        [MemberData("Task_Wait_Cancel_Data")]
+        public static void Task_Wait_Millisecond_Token_FaultTask(TimeSpan wait, TaskCreationOptions option)
+        {
+            Wait_FaultTask(wait, option, (task, w) => task.Wait((int)w.TotalMilliseconds, new CancellationToken(false)));
         }
 
         [Fact]
@@ -222,100 +296,6 @@ namespace System.Threading.Tasks.Tests
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(new CancellationToken()));
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(0, new CancellationToken(true)));
             Functions.AssertThrowsWrapped<DeliberateTestException>(() => Task.FromException(new DeliberateTestException()).Wait(new CancellationToken(true)));
-        }
-
-        // Just runs a task and waits on it.
-        [Fact]
-        public static void RunTaskWaitTest_NegativeTests()
-        {
-            string exceptionMsg = "myexception";
-
-            // test exceptions
-            var task = Task.Factory.StartNew(() => { });
-            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(-2));
-            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(TimeSpan.FromMilliseconds(-2)));
-            Assert.Throws<ArgumentOutOfRangeException>(() => task.Wait(TimeSpan.FromMilliseconds(uint.MaxValue)));
-
-            // wait on a task that gets canceled
-            CancellationTokenSource cts = new CancellationTokenSource();
-            CancellationToken ct = cts.Token;
-
-            ManualResetEvent taskStartedEvent = new ManualResetEvent(false);
-            Task t = Task.Factory.StartNew(() =>
-            {
-                taskStartedEvent.Set();
-                while (!ct.IsCancellationRequested) { }
-                throw new OperationCanceledException(ct);   //acknowledge the request
-            }, ct);
-
-            taskStartedEvent.WaitOne(); // make sure the task starts running before we set the CTS
-            cts.Cancel();
-            //tmr = new Timer((o) => cts.Cancel(), null, 100, Timeout.Infinite);
-
-            try
-            {
-                t.Wait();
-                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task show have thrown."));
-            }
-            catch (Exception e)
-            {
-                if (!(e is AggregateException) ||
-                    ((AggregateException)e).InnerExceptions.Count != 1 ||
-                    !(((AggregateException)e).InnerExceptions[0] is TaskCanceledException))
-                {
-                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task threw wrong exception."));
-                }
-            }
-
-            // wait on a task that throws
-            t = Task.Factory.StartNew(() => { throw new Exception(exceptionMsg); });
-            try
-            {
-                t.Wait();
-                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task show have thrown."));
-            }
-            catch (Exception e)
-            {
-                if (!(e is AggregateException) ||
-                    ((AggregateException)e).InnerExceptions.Count != 1 ||
-                    ((AggregateException)e).InnerExceptions[0].Message != exceptionMsg)
-                {
-                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on exceptional task threw wrong exception."));
-                }
-            }
-
-            // wait on a task that has an exceptional child task
-            Task childTask = null;
-            t = Task.Factory.StartNew(() =>
-            {
-                childTask = Task.Factory.StartNew(() => { throw new Exception(exceptionMsg); }, TaskCreationOptions.AttachedToParent);
-            });
-
-            try
-            {
-                t.Wait();
-                Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on a task with an exceptional child should have thrown."));
-            }
-            catch (Exception e)
-            {
-                AggregateException outerAggExp = e as AggregateException;
-                AggregateException innerAggExp = null;
-
-                if (outerAggExp == null ||
-                    outerAggExp.InnerExceptions.Count != 1 ||
-                    !(outerAggExp.InnerExceptions[0] is AggregateException))
-                {
-                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on task with exceptional child threw an expception other than AggExp(AggExp(childsException))."));
-                }
-
-                innerAggExp = outerAggExp.InnerExceptions[0] as AggregateException;
-
-                if (innerAggExp.InnerExceptions.Count != 1 ||
-                    innerAggExp.InnerExceptions[0].Message != exceptionMsg)
-                {
-                    Assert.True(false, string.Format("RunTaskWaitTest:  > error: Wait on task with exceptional child threw AggExp(AggExp(childsException)), but conatined wrong child exception."));
-                }
-            }
         }
 
         private static void Wait(TimeSpan load, TimeSpan wait, TaskCreationOptions option, Func<Task, TimeSpan, bool> call)
@@ -421,6 +401,58 @@ namespace System.Threading.Tasks.Tests
                 completed = call(parent, wait);
 
                 AssertCompleteOrTimedOut(completed, wait, flag, parent);
+            }
+        }
+
+        private static void Wait_CancelTask(TimeSpan wait, TaskCreationOptions options, Action<Task, TimeSpan> call)
+        {
+            using (Barrier b = new Barrier(2))
+            {
+                CancellationTokenSource source = new CancellationTokenSource();
+
+                Task task = new TaskFactory().StartNew(ignored =>
+                {
+                    b.SignalAndWait();
+                    source.Cancel();
+                    throw new OperationCanceledException(source.Token);
+                }, new object(), source.Token, options, TaskScheduler.Default);
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                // Exception isn't thrown until all tasks complete.
+                Functions.AssertThrowsWrapped<TaskCanceledException>(() => call(task, wait));
+
+                Assert.True(task.IsCompleted);
+                Assert.True(task.IsCanceled);
+                Assert.False(task.IsFaulted);
+                Assert.Equal(TaskStatus.Canceled, task.Status);
+                timer.Stop();
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
+            }
+        }
+
+        private static void Wait_FaultTask(TimeSpan wait, TaskCreationOptions options, Action<Task, TimeSpan> call)
+        {
+            using (Barrier b = new Barrier(2))
+            {
+                Task task = new TaskFactory().StartNew(() =>
+               {
+                   b.SignalAndWait();
+                   throw new DeliberateTestException();
+               }, options);
+                b.SignalAndWait();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                Functions.AssertThrowsWrapped<DeliberateTestException>(() => call(task, wait));
+
+                Assert.True(task.IsCompleted);
+                Assert.False(task.IsCanceled);
+                Assert.True(task.IsFaulted);
+                Assert.Equal(TaskStatus.Faulted, task.Status);
+                timer.Stop();
+
+                ExpectAndReport(timer.Elapsed, TimeSpan.FromMilliseconds(3), wait);
             }
         }
 
