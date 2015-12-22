@@ -1,72 +1,79 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics;
 using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
     public static class ChildTaskTests
     {
+        public static readonly TimeSpan MaxSafeWait = TimeSpan.FromMinutes(1);
+
         [Fact]
-        public static void RunDenyChildAttachTests()
+        public static void DenyChildAttach_Factory_StartNew()
         {
-            // StartNew, Task and Future
-            Task i1 = null;
-            Task t1 = Task.Factory.StartNew(() =>
+            DenyChildAttach(action => new TaskFactory().StartNew(action, TaskCreationOptions.DenyChildAttach));
+        }
+
+        [Fact]
+        public static void DenyChildAttach_Factory_Int_StartNew()
+        {
+            DenyChildAttach(action => new TaskFactory<int>().StartNew(() => { action(); return 0; }, TaskCreationOptions.DenyChildAttach));
+        }
+
+        [Fact]
+        public static void DenyChildAttach_Task_Start()
+        {
+            DenyChildAttach(action => Start(new Task(action, TaskCreationOptions.DenyChildAttach)));
+        }
+
+        [Fact]
+        public static void DenyChildAttach_Task_Int_Start()
+        {
+            DenyChildAttach(action => Start(new Task<int>(() => { action(); return 0; }, TaskCreationOptions.DenyChildAttach)));
+        }
+
+        [Fact]
+        public static void DenyChildAttach_Continuation()
+        {
+            DenyChildAttach(action => Task.Delay(TimeSpan.FromMilliseconds(5)).ContinueWith(ignore => { action(); }, TaskContinuationOptions.DenyChildAttach));
+        }
+
+        [Fact]
+        public static void DenyChildAttach_Continuation_Int()
+        {
+            DenyChildAttach(action => Task.Delay(TimeSpan.FromMilliseconds(5)).ContinueWith(ignore => { action(); return 0; }, TaskContinuationOptions.DenyChildAttach));
+        }
+
+        private static void DenyChildAttach(Func<Action, Task> create)
+        {
+            using (ManualResetEventSlim mres = new ManualResetEventSlim(false))
+            using (Barrier startingLine = new Barrier(3))
             {
-                i1 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-            }, TaskCreationOptions.DenyChildAttach);
+                Task child = null;
+                // Delegate creation of the parent task to allow easier testing of multiple creation methods.
+                Task parent = create(() =>
+                {
+                    child = new Task(() => { startingLine.SignalAndWait(); mres.Wait(); }, TaskCreationOptions.AttachedToParent);
+                    child.Start();
+                    startingLine.SignalAndWait();
+                });
 
-            Task i2 = null;
-            Task t2 = Task<int>.Factory.StartNew(() =>
-            {
-                i2 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-                return 42;
-            }, TaskCreationOptions.DenyChildAttach);
+                Assert.True(startingLine.SignalAndWait(MaxSafeWait));
 
-            // ctor/Start, Task and Future
-            Task i3 = null;
-            Task t3 = new Task(() =>
-            {
-                i3 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-            }, TaskCreationOptions.DenyChildAttach);
-            t3.Start();
+                Assert.True(SpinWait.SpinUntil(() => parent.Status != TaskStatus.Running, MaxSafeWait));
 
-            Task i4 = null;
-            Task t4 = new Task<int>(() =>
-            {
-                i4 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-                return 42;
-            }, TaskCreationOptions.DenyChildAttach);
-            t4.Start();
+                Assert.True(parent.IsCompleted);
+                Assert.False(parent.IsCanceled);
+                Assert.False(parent.IsFaulted);
+                Assert.Null(parent.Exception);
+                Assert.Equal(TaskStatus.RanToCompletion, parent.Status);
 
-            // continuations, Task and Future
-            Task i5 = null;
-            Task t5 = t3.ContinueWith(_ =>
-            {
-                i5 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-            }, TaskContinuationOptions.DenyChildAttach);
+                Assert.False(child.IsCompleted);
+                Assert.Equal(TaskStatus.Running, child.Status);
 
-            Task i6 = null;
-            Task t6 = t4.ContinueWith<int>(_ =>
-            {
-                i6 = new Task(() => { }, TaskCreationOptions.AttachedToParent);
-                return 42;
-            }, TaskContinuationOptions.DenyChildAttach);
-
-            // If DenyChildAttach doesn't work in any of the cases, then the associated "parent"
-            // task will hang waiting for its child.
-            Debug.WriteLine("RunDenyChildAttachTests: Waiting on 'parents' ... if we hang, something went wrong.");
-            Task.WaitAll(t1, t2, t3, t4, t5, t6);
-
-            // And clean up.
-            i1.Start(); i1.Wait();
-            i2.Start(); i2.Wait();
-            i3.Start(); i3.Wait();
-            i4.Start(); i4.Wait();
-            i5.Start(); i5.Wait();
-            i6.Start(); i6.Wait();
+                mres.Set();
+            }
         }
 
         private static T Start<T>(T task) where T : Task
