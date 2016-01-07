@@ -24,6 +24,8 @@
     <Compile Include="TaskScheduler\TaskSchedulerExceptionTests.cs" />
     <Compile Include="Task\ChildTaskTests.cs" />
     <Compile Include="Task\DelayTests.cs" />
+    <Compile Include="Task\FromCanceledTests.cs" />
+    <Compile Include="Task\FromExceptionTests.cs" />
     <Compile Include="Task\FromResultTests.cs" />
     <Compile Include="Task\RunTests.cs" />
     <Compile Include="Task\TaskCanceledExceptionTests.cs" />
