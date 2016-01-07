@@ -43,5 +43,67 @@ namespace System.Threading.Tasks.Tests
             SpinWait.SpinUntil(() => false, time);
             action();
         }
+
+        /// <summary>
+        /// Verify that the given task is complete
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        internal static void AssertComplete(Task task)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.False(task.IsCanceled);
+            Assert.False(task.IsFaulted);
+            Assert.Null(task.Exception);
+            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+        }
+
+        /// <summary>
+        /// Verify that the given task is complete
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        /// <param name="result">The expected result of the task</param>
+        internal static void AssertComplete<T>(Task<T> task, T result)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.False(task.IsCanceled);
+            Assert.False(task.IsFaulted);
+            Assert.Null(task.Exception);
+            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+            Assert.Equal(result, task.Result);
+        }
+
+        /// <summary>
+        /// Check that the given task is canceled.
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        /// <param name="token">The token the task was canceled with</param>
+        internal static void AssertCanceled(Task task, CancellationToken token)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.True(task.IsCanceled);
+            Assert.False(task.IsFaulted);
+            Assert.Null(task.Exception);
+            Assert.Equal(TaskStatus.Canceled, task.Status);
+
+            AggregateException ae = Assert.Throws<AggregateException>(() => task.Wait());
+            TaskCanceledException tce = Assert.IsType<TaskCanceledException>(ae.InnerException);
+            Assert.Equal(token, tce.CancellationToken);
+        }
+
+        /// <summary>
+        /// Check that the given task is faulted.
+        /// </summary>
+        /// <typeparam name="TException">The type of the exception</typeparam>
+        /// <param name="task">The task to check</param>
+        internal static void AssertFaulted<TException>(Task task)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.False(task.IsCanceled);
+            Assert.True(task.IsFaulted);
+            Assert.NotNull(task.Exception);
+            Assert.Equal(TaskStatus.Faulted, task.Status);
+
+            AssertThrowsWrapped<TException>(() => task.Wait());
+        }
     }
 }
