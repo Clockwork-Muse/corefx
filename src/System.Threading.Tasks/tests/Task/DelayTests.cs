@@ -1,113 +1,211 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics;
 using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
     public static class DelayTests
     {
-        [Fact]
-        public static void RunDelayTests()
+        private static readonly TimeSpan MaxSafeWait = TimeSpan.FromMinutes(1);
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public static void Delay_Int_Complete(int milliseconds)
         {
-            //
-            // Test basic functionality
-            //
-            CancellationTokenSource cts = new CancellationTokenSource();
-            CancellationToken token = cts.Token;
+            Delay_Complete(Task.Delay(milliseconds));
+        }
 
-            // These should all complete quickly, with RAN_TO_COMPLETION status.
-            Task task1 = Task.Delay(0);
-            Task task2 = Task.Delay(new TimeSpan(0));
-            Task task3 = Task.Delay(0, token);
-            Task task4 = Task.Delay(new TimeSpan(0), token);
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public static void Delay_Timespan_Complete(int milliseconds)
+        {
+            Delay_Complete(Task.Delay(TimeSpan.FromMilliseconds(milliseconds)));
+        }
 
-            Debug.WriteLine("RunDelayTests:    > Waiting for 0-delayed uncanceled tasks to complete.  If we hang, something went wrong.");
-            try
-            {
-                Task.WaitAll(task1, task2, task3, task4);
-            }
-            catch (Exception e)
-            {
-                Assert.True(false, string.Format("RunDelayTests:    > FAILED.  Unexpected exception on WaitAll(simple tasks): {0}", e));
-            }
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public static void Delay_Int_Token_Complete(int milliseconds)
+        {
+            Delay_Complete(Task.Delay(milliseconds, new CancellationTokenSource().Token));
+        }
 
-            Assert.True(task1.Status == TaskStatus.RanToCompletion, "    > FAILED.  Expected Delay(0) to run to completion");
-            Assert.True(task2.Status == TaskStatus.RanToCompletion, "    > FAILED.  Expected Delay(TimeSpan(0)) to run to completion");
-            Assert.True(task3.Status == TaskStatus.RanToCompletion, "    > FAILED.  Expected Delay(0,uncanceledToken) to run to completion");
-            Assert.True(task4.Status == TaskStatus.RanToCompletion, "    > FAILED.  Expected Delay(TimeSpan(0),uncanceledToken) to run to completion");
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public static void Delay_Timespan_Token_Complete(int milliseconds)
+        {
+            Delay_Complete(Task.Delay(TimeSpan.FromMilliseconds(milliseconds), new CancellationTokenSource().Token));
+        }
 
-            // This should take some time
-            Task task7 = Task.Delay(10000);
-            Assert.False(task7.IsCompleted, "RunDelayTests:    > FAILED.  Delay(10000) appears to have completed too soon(1).");
-            Task t2 = Task.Delay(10);
-            Assert.False(task7.IsCompleted, "RunDelayTests:    > FAILED.  Delay(10000) appears to have completed too soon(2).");
+        private static void Delay_Complete(Task delayed)
+        {
+            Assert.True(SpinWait.SpinUntil(() => delayed.IsCompleted, MaxSafeWait));
+
+            Assert.False(delayed.IsCanceled);
+            Assert.False(delayed.IsFaulted);
+            Assert.Null(delayed.Exception);
+            Assert.Equal(TaskStatus.RanToCompletion, delayed.Status);
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Int_NotComplete(int milliseconds)
+        {
+            Delay_NotComplete(Task.Delay(milliseconds));
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Timespan_NotComplete(int milliseconds)
+        {
+            Delay_NotComplete(Task.Delay(TimeSpan.FromMilliseconds(milliseconds)));
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Int_Token_NotComplete(int milliseconds)
+        {
+            Delay_NotComplete(Task.Delay(milliseconds, new CancellationTokenSource().Token));
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Timespan_Token_NotComplete(int milliseconds)
+        {
+            Delay_NotComplete(Task.Delay(TimeSpan.FromMilliseconds(milliseconds), new CancellationTokenSource().Token));
+        }
+
+        private static void Delay_NotComplete(Task delayed)
+        {
+            SpinWait.SpinUntil(() => false, TimeSpan.FromMilliseconds(5));
+
+            Assert.False(delayed.IsCompleted);
+            Assert.False(delayed.IsCanceled);
+            Assert.False(delayed.IsFaulted);
+            Assert.Null(delayed.Exception);
+            Assert.Equal(TaskStatus.WaitingForActivation, delayed.Status);
+        }
+
+        [Theory]
+        [InlineData(-2)]
+        [InlineData(int.MinValue)]
+        public static void Delay_OutOfRange(int milliseconds)
+        {
+            // putting in brackets to prevent use of ThrowsAsync:
+            // the exception happens during the call to Delay, not in the returned task
+            Assert.Throws<ArgumentOutOfRangeException>(() => { Task.Delay(milliseconds); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { Task.Delay(TimeSpan.FromMilliseconds(milliseconds)); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { Task.Delay(milliseconds, new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { Task.Delay(TimeSpan.FromMilliseconds(milliseconds), new CancellationTokenSource().Token); });
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Int_Token_PreCanceled(int milliseconds)
+        {
+            Delay_PreCanceled(token => Task.Delay(milliseconds, token));
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Timespan_Token_PreCanceled(int milliseconds)
+        {
+            Delay_PreCanceled(token => Task.Delay(TimeSpan.FromMilliseconds(milliseconds), token));
+        }
+
+        private static void Delay_PreCanceled(Func<CancellationToken, Task> create)
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+            source.Cancel();
+
+            Task delayed = create(source.Token);
+
+            // Should be canceled immediately
+            Assert.True(delayed.IsCompleted);
+            Assert.True(delayed.IsCanceled);
+            Assert.False(delayed.IsFaulted);
+            Assert.Null(delayed.Exception);
+            Assert.Equal(TaskStatus.Canceled, delayed.Status);
+
+            AggregateException ae = Assert.Throws<AggregateException>(() => delayed.Wait());
+            TaskCanceledException tce = Assert.IsType<TaskCanceledException>(ae.InnerException);
+            Assert.Equal(source.Token, tce.CancellationToken);
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Int_Token_Cancel(int milliseconds)
+        {
+            Delay_Cancel(token => Task.Delay(milliseconds, token));
+        }
+
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-1)]
+        public static void Delay_Timespan_Token_Cancel(int milliseconds)
+        {
+            Delay_Cancel(token => Task.Delay(TimeSpan.FromMilliseconds(milliseconds), token));
+        }
+
+        private static void Delay_Cancel(Func<CancellationToken, Task> create)
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+
+            Task delayed = create(source.Token);
+
+            // Should be waiting
+            Assert.False(delayed.IsCompleted);
+            Assert.False(delayed.IsCanceled);
+            Assert.False(delayed.IsFaulted);
+            Assert.Null(delayed.Exception);
+            Assert.Equal(TaskStatus.WaitingForActivation, delayed.Status);
+
+            SpinWait.SpinUntil(() => false, TimeSpan.FromMilliseconds(5));
+            source.Cancel();
+
+            // Should be canceled immediately
+            Assert.True(delayed.IsCompleted);
+            Assert.True(delayed.IsCanceled);
+            Assert.False(delayed.IsFaulted);
+            Assert.Null(delayed.Exception);
+            Assert.Equal(TaskStatus.Canceled, delayed.Status);
+
+            AggregateException ae = Assert.Throws<AggregateException>(() => delayed.Wait());
+            TaskCanceledException tce = Assert.IsType<TaskCanceledException>(ae.InnerException);
+            Assert.Equal(source.Token, tce.CancellationToken);
         }
 
         [Fact]
-        public static void RunDelayTests_NegativeCases()
+        public static void Delay_Start()
         {
-            CancellationTokenSource disposedCTS = new CancellationTokenSource();
-            CancellationToken disposedToken = disposedCTS.Token;
-            disposedCTS.Dispose();
-
-            //
-            // Test for exceptions
-            //
-            Assert.Throws<ArgumentOutOfRangeException>(
-               () => { Task.Delay(-2); });
-            Assert.Throws<ArgumentOutOfRangeException>(
-               () => { Task.Delay(new TimeSpan(1000, 0, 0, 0)); });
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-            CancellationToken token = cts.Token;
-            cts.Cancel();
-
-            // These should complete quickly, in Canceled status
-            Task task5 = Task.Delay(0, token);
-            Task task6 = Task.Delay(new TimeSpan(0), token);
-
-            Debug.WriteLine("RunDelayTests:    > Waiting for 0-delayed canceled tasks to complete.  If we hang, something went wrong.");
-            try
-            {
-                Task.WaitAll(task5, task6);
-            }
-            catch { }
-
-            Assert.True(task5.Status == TaskStatus.Canceled, "RunDelayTests:    > FAILED.  Expected Delay(0,canceledToken) to end up Canceled");
-            Assert.True(task6.Status == TaskStatus.Canceled, "RunDelayTests:    > FAILED.  Expected Delay(TimeSpan(0),canceledToken) to end up Canceled");
-
-            // Cancellation token on two tasks and waiting on a task a second time.
-            CancellationTokenSource cts2 = new CancellationTokenSource();
-
-            Task task8 = Task.Delay(-1, cts2.Token);
-            Task task9 = Task.Delay(new TimeSpan(1, 0, 0, 0), cts2.Token);
-            Task.Factory.StartNew(() =>
-            {
-                cts2.Cancel();
-            });
-
-            Debug.WriteLine("RunDelayTests:    > Waiting for infinite-delayed, eventually-canceled tasks to complete.  If we hang, something went wrong.");
-            try
-            {
-                Task.WaitAll(task8, task9);
-            }
-            catch { }
-
-            Assert.True(task8.IsCanceled, "RunDelayTests:    > FAILED.  Expected Delay(-1, token) to end up Canceled.");
-            Assert.True(task9.IsCanceled, "RunDelayTests:    > FAILED.  Expected Delay(TimeSpan(1,0,0,0), token) to end up Canceled.");
-
-            try
-            {
-                task8.Wait();
-            }
-            catch (AggregateException ae)
-            {
-                Assert.True(
-                   ae.InnerException is OperationCanceledException && ((OperationCanceledException)ae.InnerException).CancellationToken == cts2.Token,
-                   "RunDelayTests:    > FAILED.  Expected resulting OCE to contain canceled token.");
-            }
+            // Delay tasks are considered "promises", and thus can't be started.
+            Assert.Throws<InvalidOperationException>(() => Task.Delay(-1).Start());
+            Assert.Throws<InvalidOperationException>(() => Task.Delay(TimeSpan.FromMilliseconds(-1)).Start());
+            Assert.Throws<InvalidOperationException>(() => Task.Delay(-1, new CancellationTokenSource().Token).Start());
+            Assert.Throws<InvalidOperationException>(() => Task.Delay(TimeSpan.FromMilliseconds(-1), new CancellationTokenSource().Token).Start());
         }
     }
 }
