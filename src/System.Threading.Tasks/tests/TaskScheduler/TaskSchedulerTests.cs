@@ -17,15 +17,18 @@ namespace System.Threading.Tasks.Tests
     //
     public static class TaskSchedulerTests
     {
+        private static readonly TimeSpan MaxSafeWait = TimeSpan.FromMinutes(1);
+
         // Just ensure we eventually complete when many blocked tasks are created.
         [OuterLoop]
         [Fact]
         public static void RunBlockedInjectionTest()
         {
-            Debug.WriteLine("* RunBlockedInjectionTest() -- if it deadlocks, it failed");
-
-            using (ManualResetEvent mre = new ManualResetEvent(false))
+            int processorCount = Environment.ProcessorCount;
+            using (Barrier startingLine = new Barrier(processorCount + 1))
             {
+                Flag flag = new Flag();
+
                 // This test needs to be run with a local task scheduler, because it needs to perform
                 // the verification based on a known number of initially available threads.
                 //
@@ -34,120 +37,192 @@ namespace System.Threading.Tasks.Tests
                 //        to bring down the TP worker count. This is because previous activity in the test process might have
                 //        injected workers.
                 TaskScheduler tm = TaskScheduler.Default;
+                TaskFactory factory = new TaskFactory(CancellationToken.None, TaskCreationOptions.None, TaskContinuationOptions.None, tm);
 
                 // Create many tasks blocked on the MRE.
-
-                int processorCount = Environment.ProcessorCount;
                 Task[] tasks = new Task[processorCount];
                 for (int i = 0; i < tasks.Length; i++)
                 {
-                    tasks[i] = Task.Factory.StartNew(() => mre.WaitOne(), CancellationToken.None, TaskCreationOptions.None, tm);
+                    tasks[i] = factory.StartNew(() =>
+                    {
+                        startingLine.SignalAndWait();
+                        SpinWait.SpinUntil(() => flag.IsTripped);
+                    });
                 }
+
+                Assert.True(startingLine.SignalAndWait(MaxSafeWait));
+
+                Assert.All(tasks, task => Assert.Equal(TaskStatus.Running, task.Status));
 
                 // TODO: Evaluate use of safety valve.
                 // Create one task that signals the MRE, and wait for it.
-                Assert.True(Task.Factory.StartNew(() => mre.Set(), CancellationToken.None, TaskCreationOptions.None, tm).Wait(TimeSpan.FromMinutes(10)));
+                Assert.True(factory.StartNew(() => flag.Trip()).Wait(MaxSafeWait));
 
                 // Lastly, wait for the others to complete.
-                Assert.True(Task.WaitAll(tasks, TimeSpan.FromMinutes(10)));
+                Assert.True(Task.WaitAll(tasks, MaxSafeWait));
             }
         }
 
+        // The difference between this test and the previous is the internal mechanism being tested.
+        // The previous test deals with blocked task escalation (creating an additional worker).
+        // This test is about skipping the internal worker pool altogether (due to TaskCreationOptions.LongRunning).
+        // Currently the implementations are (nearly) identical, but may diverge in the future.
         [Fact]
         public static void RunLongRunningTaskTests()
         {
-            TaskScheduler tm = TaskScheduler.Default;
             // This is computed such that this number of long-running tasks will result in a back-up
             // without some assistance from TaskScheduler.RunBlocking() or TaskCreationOptions.LongRunning.
+            int concurrencyCount = Environment.ProcessorCount * 2;
 
-            int ntasks = Environment.ProcessorCount * 2;
-
-            Task[] tasks = new Task[ntasks];
-            ManualResetEvent mre = new ManualResetEvent(false); // could just use a bool?
-            CountdownEvent cde = new CountdownEvent(ntasks); // to count the number of Tasks that successfully start
-            for (int i = 0; i < ntasks; i++)
+            using (Barrier startingLine = new Barrier(concurrencyCount + 1))
             {
-                tasks[i] = Task.Factory.StartNew(delegate
+                Flag flag = new Flag();
+
+                // This test needs to be run with a local task scheduler, because it needs to perform
+                // the verification based on a known number of initially available threads.
+                //
+                //
+                // @TODO: When we reach the _planB branch we need to add a trick here using ThreadPool.SetMaxThread
+                //        to bring down the TP worker count. This is because previous activity in the test process might have
+                //        injected workers.
+                TaskScheduler tm = TaskScheduler.Default;
+                TaskFactory factory = new TaskFactory(CancellationToken.None, TaskCreationOptions.LongRunning, TaskContinuationOptions.None, tm);
+
+                // Create many tasks blocked on the MRE.
+                Task[] tasks = new Task[concurrencyCount];
+                for (int i = 0; i < tasks.Length; i++)
                 {
-                    cde.Signal(); // indicate that task has begun execution
-                    Debug.WriteLine("Signalled");
-                    while (!mre.WaitOne(0)) ;
-                }, CancellationToken.None, TaskCreationOptions.LongRunning, tm);
-            }
-            bool waitSucceeded = cde.Wait(5000);
-            foreach (Task task in tasks)
-                Debug.WriteLine("Status: " + task.Status);
-            int count = cde.CurrentCount;
-            int initialCount = cde.InitialCount;
-            if (!waitSucceeded)
-            {
-                Debug.WriteLine("Wait failed. CDE.CurrentCount: {0}, CDE.Initial Count: {1}", count, initialCount);
-                Assert.True(false, string.Format("RunLongRunningTaskTests - TaskCreationOptions.LongRunning:    > FAILED.  Timed out waiting for tasks to start."));
-            }
+                    tasks[i] = factory.StartNew(() =>
+                    {
+                        startingLine.SignalAndWait();
+                        SpinWait.SpinUntil(() => flag.IsTripped);
+                    });
+                }
 
-            mre.Set();
-            Task.WaitAll(tasks);
+                Assert.True(startingLine.SignalAndWait(MaxSafeWait));
+
+                Assert.All(tasks, task => Assert.Equal(TaskStatus.Running, task.Status));
+
+                flag.Trip();
+
+                // Lastly, wait for the others to complete.
+                Assert.True(Task.WaitAll(tasks, MaxSafeWait));
+            }
         }
 
-        [Fact]
-        public static void RunHideSchedulerTests()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Factory_StartNew(bool hideScheduler)
         {
-            TaskScheduler[] schedules = new TaskScheduler[2];
-            schedules[0] = TaskScheduler.Default;
+            HideScheduler(hideScheduler, (action, scheduler) => new TaskFactory().StartNew(action,
+                new CancellationToken(), hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None, scheduler));
+        }
 
-            for (int i = 0; i < schedules.Length; i++)
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Factory_Int_StartNew(bool hideScheduler)
+        {
+            HideScheduler(hideScheduler, (action, scheduler) => new TaskFactory<int>().StartNew(() => { action(); return 0; },
+                new CancellationToken(), hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None, scheduler));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Task_Start(bool hideScheduler)
+        {
+            HideScheduler(hideScheduler, (action, scheduler) =>
+                Start(new Task(action, hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None), scheduler));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Task_Int_Start(bool hideScheduler)
+        {
+            HideScheduler(hideScheduler, (action, scheduler) =>
+                Start(new Task<int>(() => { action(); return 0; }, hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None), scheduler));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Continuation(bool hideScheduler)
+        {
+            HideScheduler(hideScheduler, (action, scheduler) => Task.Delay(TimeSpan.FromMilliseconds(5)).ContinueWith(ignore => { action(); },
+                new CancellationToken(), hideScheduler ? TaskContinuationOptions.HideScheduler : TaskContinuationOptions.None, scheduler));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public static void HideScheduler_Continuation_Int(bool hideScheduler)
+        {
+            HideScheduler(hideScheduler, (action, scheduler) => Task.Delay(TimeSpan.FromMilliseconds(5)).ContinueWith(ignore => { action(); return 0; },
+                new CancellationToken(), hideScheduler ? TaskContinuationOptions.HideScheduler : TaskContinuationOptions.None, scheduler));
+        }
+
+        private static void HideScheduler(bool hideScheduler, Func<Action, TaskScheduler, Task> create)
+        {
+            using (ManualResetEventSlim mres = new ManualResetEventSlim(false))
+            using (Barrier startingLine = new Barrier(3))
             {
-                bool useCustomTs = (i == 1);
-                TaskScheduler outerTs = schedules[i]; // useCustomTs ? customTs : TaskScheduler.Default;
-                // If we are running CoreCLR, then schedules[1] = null, and we should continue in this case.
-                if (i == 1 && outerTs == null)
-                    continue;
+                TaskScheduler expectedCustomScheduler = new QUWITaskScheduler();
 
-                for (int j = 0; j < 2; j++)
+                TaskScheduler parentScheduler = null;
+                TaskScheduler childScheduler = null;
+
+                Task child = null;
+                // Delegate creation of the parent task to allow easier testing of multiple creation methods.
+                Task parent = create(() =>
                 {
-                    bool hideScheduler = (j == 0);
-                    TaskCreationOptions creationOptions = hideScheduler ? TaskCreationOptions.HideScheduler : TaskCreationOptions.None;
-                    TaskContinuationOptions continuationOptions = hideScheduler ? TaskContinuationOptions.HideScheduler : TaskContinuationOptions.None;
-                    TaskScheduler expectedInnerTs = hideScheduler ? TaskScheduler.Default : outerTs;
-
-                    Action<string> commonAction = delegate (string setting)
+                    child = new Task(() =>
                     {
-                        Assert.Equal(TaskScheduler.Current, expectedInnerTs);
+                        childScheduler = TaskScheduler.Current;
+                        startingLine.SignalAndWait();
+                        mres.Wait();
+                    });
+                    child.Start();
+                    parentScheduler = TaskScheduler.Current;
+                    startingLine.SignalAndWait();
+                }, expectedCustomScheduler);
 
-                        // And just for completeness, make sure that inner tasks are started on the correct scheduler
-                        TaskScheduler tsInner1 = null, tsInner2 = null;
+                Assert.True(startingLine.SignalAndWait(MaxSafeWait));
 
-                        Task tInner = Task.Factory.StartNew(() =>
-                        {
-                            tsInner1 = TaskScheduler.Current;
-                        });
-                        Task continuation = tInner.ContinueWith(_ =>
-                        {
-                            tsInner2 = TaskScheduler.Current;
-                        });
+                Assert.True(SpinWait.SpinUntil(() => parent.Status != TaskStatus.Running, MaxSafeWait));
 
-                        Task.WaitAll(tInner, continuation);
+                Assert.True(parent.IsCompleted);
+                Assert.False(parent.IsCanceled);
+                Assert.False(parent.IsFaulted);
+                Assert.Null(parent.Exception);
+                Assert.Equal(TaskStatus.RanToCompletion, parent.Status);
 
-                        Assert.Equal(tsInner1, expectedInnerTs);
-                        Assert.Equal(tsInner2, expectedInnerTs);
-                    };
+                Assert.False(child.IsCompleted);
+                Assert.Equal(TaskStatus.Running, child.Status);
+                Assert.NotNull(childScheduler);
+                if (hideScheduler)
+                {
+                    Assert.NotEqual(expectedCustomScheduler, parentScheduler);
+                    Assert.Equal(TaskScheduler.Default, parentScheduler);
+                    Assert.NotEqual(expectedCustomScheduler, childScheduler);
+                    Assert.Equal(TaskScheduler.Default, childScheduler);
+                }
+                else
+                {
+                    Assert.Equal(expectedCustomScheduler, parentScheduler);
+                    Assert.Equal(parentScheduler, childScheduler);
+                }
 
-                    Task outerTask = Task.Factory.StartNew(() =>
-                    {
-                        commonAction("task");
-                    }, CancellationToken.None, creationOptions, outerTs);
-                    Task outerContinuation = outerTask.ContinueWith(_ =>
-                    {
-                        commonAction("continuation");
-                    }, CancellationToken.None, continuationOptions, outerTs);
+                mres.Set();
+            }
+        }
 
-                    Task.WaitAll(outerTask, outerContinuation);
-
-                    // Check that the option was internalized by the task/continuation
-                    Assert.True(hideScheduler == ((outerTask.CreationOptions & TaskCreationOptions.HideScheduler) != 0), "RunHideSchedulerTests:  FAILED.  CreationOptions mismatch on outerTask");
-                    Assert.True(hideScheduler == ((outerContinuation.CreationOptions & TaskCreationOptions.HideScheduler) != 0), "RunHideSchedulerTests:  FAILED.  CreationOptions mismatch on outerContinuation");
-                } // end j-loop, for hideScheduler setting
-            } // ending i-loop, for customTs setting
+        private static T Start<T>(T task, TaskScheduler scheduler) where T : Task
+        {
+            task.Start(scheduler);
+            return task;
         }
 
         [Fact]
