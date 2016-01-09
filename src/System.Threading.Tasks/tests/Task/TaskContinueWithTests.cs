@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// TPL namespaces
 using System.Diagnostics;
 using Xunit;
 
@@ -16,25 +15,18 @@ namespace System.Threading.Tasks.Tests
         #region ContinueWith Tests
 
         [Fact]
-        public static void RunContinueWithAsyncStateCheckTests()
+        public static void AsyncState_Null()
         {
-            Task t = new Task(() => { });
-            var c1 = t.ContinueWith(_ => { });
-            var c2 = t.ContinueWith(_ => { return 42; });
+            Assert.Null(Wait(new Task(() => { }).ContinueWith(_ => { })).AsyncState);
+            Assert.Null(Wait(new Task(() => { }).ContinueWith(_ => 0)).AsyncState);
+            Assert.Null(Wait(new Task<int>(() => 0).ContinueWith(_ => { })).AsyncState);
+            Assert.Null(Wait(new Task<int>(() => 0).ContinueWith(_ => 0)).AsyncState);
+        }
 
-            Task<int> f = new Task<int>(() => 1);
-            var c3 = f.ContinueWith(_ => { });
-            var c4 = f.ContinueWith(antecedent => antecedent.Result);
-
-            t.Start();
-            f.Start();
-
-            Task.WaitAll(c1, c2, c3, c4);
-
-            Assert.True(c1.AsyncState == null, "RunContinueWithAsyncStateCheckTests: task=>task continuation leaks state");
-            Assert.True(c2.AsyncState == null, "RunContinueWithAsyncStateCheckTests: task=>future continuation leaks state");
-            Assert.True(c3.AsyncState == null, "RunContinueWithAsyncStateCheckTests: future=>task continuation leaks state");
-            Assert.True(c4.AsyncState == null, "RunContinueWithAsyncStateCheckTests: future=>future continuation leaks state");
+        private static T Wait<T>(T task) where T : Task
+        {
+            task.Wait();
+            return task;
         }
 
         // Stresses on multiple continuations from a single antecedent
