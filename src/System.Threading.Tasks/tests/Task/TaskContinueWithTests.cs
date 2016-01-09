@@ -30,34 +30,111 @@ namespace System.Threading.Tasks.Tests
         }
 
         // Stresses on multiple continuations from a single antecedent
-        [Fact]
-        public static void RunContinueWithStressTestsNoState()
+        [Theory]
+        // All "leftover" continuations will be immediately scheduled.
+        // All "cancel" continuations will be immediately canceled.
+        [InlineData(5000, 10000, 0, 0)]
+        [InlineData(10000, 10000, 0, 0)]
+        [InlineData(15000, 10000, 0, 0)]
+        // Some "leftover" continuations will be queued when antecedent completes
+        // All "cancel" continuations will be immediately canceled
+        [InlineData(5000, 10000, 100, 0)]
+        [InlineData(10000, 10000, 100, 0)]
+        [InlineData(15000, 10000, 100, 0)]
+        // Some "leftover" continuations will be queued when antecedent completes
+        // Some "cancel" continuations will be queued when the token is signaled
+        [InlineData(5000, 10000, 1000, 100)]
+        [InlineData(10000, 10000, 1000, 100)]
+        [InlineData(15000, 10000, 1000, 100)]
+        // All "leftover" continuations should be queued when antecedent completes
+        // There may or may not be leftover "cancel" continuations when the antecedent completes
+        [InlineData(5000, 10000, 10000, 9900)]
+        [InlineData(10000, 10000, 10000, 9900)]
+        [InlineData(15000, 10000, 10000, 9900)]
+        // All continuations should be queued when antecedent completes
+        [InlineData(5000, 10000, 10000, 10000)]
+        [InlineData(10000, 10000, 10000, 10000)]
+        [InlineData(15000, 10000, 10000, 10000)]
+        public static void ContinueWithTortureTest(int numCanceled, int numLeftover, int completeAfter, int cancelAfter)
         {
-            int numIterations = 3;
-            for (int iteration = 0; iteration < numIterations; iteration++)
+            //Debug.WriteLine("    - ContinueWithTortureTest(numCanceled={0}, numLeftover={1}, completeAfter={2}, cancelAfter={3})",
+            //    numCanceled, numLeftover, completeAfter, cancelAfter);
+
+            // The TCS mechanism gives us an easy way to start (and complete) antecedent
+            TaskCompletionSource<bool> antecedentTcs = new TaskCompletionSource<bool>();
+            Task antecedent = antecedentTcs.Task;
+
+            int normalCount = 0; // incremented by "normal" or "leftover" continuations
+            int canceledCount = 0; // incremented by "cancel" continuations
+            CancellationTokenSource cts = new CancellationTokenSource(); // CTS to cancel
+
+            // These TCS/continuation combos will serve to initiate antecedent completion or CTS signaling asynchronously
+            TaskCompletionSource<bool> completionTcs = new TaskCompletionSource<bool>();
+            completionTcs.Task.ContinueWith(_ => { antecedentTcs.TrySetResult(true); }, TaskContinuationOptions.PreferFairness);
+            TaskCompletionSource<bool> cancellationTcs = new TaskCompletionSource<bool>();
+            cancellationTcs.Task.ContinueWith(_ => { cts.Cancel(); }, TaskContinuationOptions.PreferFairness);
+
+            // Keep track of continuations so that you can wait on them
+            Task[] normalContinuations = new Task[numLeftover];
+            Task[] cancelContinuations = new Task[numCanceled];
+
+            // Take early action if either threshold is set at 0
+            if (completeAfter == 0) antecedentTcs.TrySetResult(true);
+            if (cancelAfter == 0) cts.Cancel();
+
+            // These are the actions to take in "to be run" and "to be canceled" continuations, respectively
+            Action<Task> normalAction = (task) => { Interlocked.Increment(ref normalCount); };
+            Action<Task> cancelAction = (task) => { Interlocked.Increment(ref canceledCount); };
+
+            // Simultaneously start adding both "to be run" continuations and "to be canceled" continuations
+            Task taskA = Task.Factory.StartNew(
+                () =>
+                {
+                    for (int i = 0; i < numCanceled; i++)
+                    {
+                        // Use both synchronous and asynchronous continuations
+                        TaskContinuationOptions tco = ((i % 2) == 0) ? TaskContinuationOptions.None : TaskContinuationOptions.ExecuteSynchronously;
+
+                        // The cancelAction should run exactly once per "to be canceled" continuation -- either in the first continuation or,
+                        // if the first continuation is canceled, in the second continuation.
+                        cancelContinuations[i] = antecedent.ContinueWith(cancelAction, cts.Token, tco, TaskScheduler.Default)
+                            .ContinueWith(cancelAction, tco | TaskContinuationOptions.OnlyOnCanceled);
+                    }
+                });
+
+            Task taskB = Task.Factory.StartNew(
+                () =>
+                {
+                    for (int i = 0; i < numLeftover; i++)
+                    {
+                        // Use both synchronous and asynchronous continuations
+                        TaskContinuationOptions tco = ((i % 2) == 0) ? TaskContinuationOptions.None : TaskContinuationOptions.ExecuteSynchronously;
+                        normalContinuations[i] = antecedent.ContinueWith(normalAction, tco);
+
+                        // If you've hit completeAfter or cancelAfter, take the approriate action
+                        if ((i + 1) == completeAfter) completionTcs.TrySetResult(true); // Asynchronously completes the antecedent
+                        if ((i + 1) == cancelAfter) cancellationTcs.TrySetResult(true); // Asynchronously initiates cancellation of "to be canceled" tasks
+                    }
+                });
+
+            Task.WaitAll(taskA, taskB);
+            Task.WaitAll(normalContinuations);
+
+            try
             {
-                int numToCancel = 5000 * (iteration + 1);
-                int numToComplete = 10000;
-
-                // All "leftover" continuations will be immediately scheduled.
-                // All "cancel" continuations will be immediately canceled.
-                ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 0, cancelAfter: 0);
-
-                // Some "leftover" continuations will be queued when antecedent completes
-                // All "cancel" continuations will be immediately canceled
-                ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 100, cancelAfter: 0);
-
-                // Some "leftover" continuations will be queued when antecedent completes
-                // Some "cancel" continuations will be queued when the token is signaled
-                ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 1000, cancelAfter: 100);
-
-                // All "leftover" continuations should be queued when antecedent completes
-                // There may or may not be leftover "cancel" continuations when the antecedent completes
-                ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 10000, cancelAfter: 9900);
-
-                // All continuations should be queued when antecedent completes
-                ContinueWithTortureTest(numToCancel, numToComplete, completeAfter: 10000, cancelAfter: 10000);
+                Task.WaitAll(cancelContinuations);
             }
+            catch (AggregateException ae)
+            {
+                // We may get AE<TCE> from WaitAll on cancelContinuations.  If so, just eat it.
+                EnsureExceptionIsAEofTCE(ae,
+                   "ContinueWithTortureTest: > FAILED.  Did not expect anything exception AE<TCE> from cancelContinuations.Wait()");
+            }
+
+            Assert.True(normalCount == numLeftover,
+               "ContinueWithTortureTest: > FAILED! normalCount mismatch (exp " + numLeftover + " got " + normalCount + ")");
+            Assert.True(canceledCount == numCanceled,
+               "ContinueWithTortureTest: > FAILED! canceledCount mismatch (exp + " + numCanceled + " got " + canceledCount + ")");
         }
 
         [Fact]
@@ -1375,88 +1452,6 @@ namespace System.Threading.Tasks.Tests
         #endregion
 
         #region Helper Methods
-
-        public static void ContinueWithTortureTest(int numCanceled, int numLeftover, int completeAfter, int cancelAfter)
-        {
-            //Debug.WriteLine("    - ContinueWithTortureTest(numCanceled={0}, numLeftover={1}, completeAfter={2}, cancelAfter={3})",
-            //    numCanceled, numLeftover, completeAfter, cancelAfter);
-
-            // The TCS mechanism gives us an easy way to start (and complete) antecedent
-            TaskCompletionSource<bool> antecedentTcs = new TaskCompletionSource<bool>();
-            Task antecedent = antecedentTcs.Task;
-
-            int normalCount = 0; // incremented by "normal" or "leftover" continuations
-            int canceledCount = 0; // incremented by "cancel" continuations
-            CancellationTokenSource cts = new CancellationTokenSource(); // CTS to cancel
-
-            // These TCS/continuation combos will serve to initiate antecedent completion or CTS signaling asynchronously
-            TaskCompletionSource<bool> completionTcs = new TaskCompletionSource<bool>();
-            completionTcs.Task.ContinueWith(_ => { antecedentTcs.TrySetResult(true); }, TaskContinuationOptions.PreferFairness);
-            TaskCompletionSource<bool> cancellationTcs = new TaskCompletionSource<bool>();
-            cancellationTcs.Task.ContinueWith(_ => { cts.Cancel(); }, TaskContinuationOptions.PreferFairness);
-
-            // Keep track of continuations so that you can wait on them
-            Task[] normalContinuations = new Task[numLeftover];
-            Task[] cancelContinuations = new Task[numCanceled];
-
-            // Take early action if either threshold is set at 0
-            if (completeAfter == 0) antecedentTcs.TrySetResult(true);
-            if (cancelAfter == 0) cts.Cancel();
-
-            // These are the actions to take in "to be run" and "to be canceled" continuations, respectively
-            Action<Task> normalAction = (task) => { Interlocked.Increment(ref normalCount); };
-            Action<Task> cancelAction = (task) => { Interlocked.Increment(ref canceledCount); };
-
-            // Simultaneously start adding both "to be run" continuations and "to be canceled" continuations
-            Task taskA = Task.Factory.StartNew(
-                () =>
-                {
-                    for (int i = 0; i < numCanceled; i++)
-                    {
-                        // Use both synchronous and asynchronous continuations
-                        TaskContinuationOptions tco = ((i % 2) == 0) ? TaskContinuationOptions.None : TaskContinuationOptions.ExecuteSynchronously;
-
-                        // The cancelAction should run exactly once per "to be canceled" continuation -- either in the first continuation or,
-                        // if the first continuation is canceled, in the second continuation.
-                        cancelContinuations[i] = antecedent.ContinueWith(cancelAction, cts.Token, tco, TaskScheduler.Default)
-                            .ContinueWith(cancelAction, tco | TaskContinuationOptions.OnlyOnCanceled);
-                    }
-                });
-
-            Task taskB = Task.Factory.StartNew(
-                () =>
-                {
-                    for (int i = 0; i < numLeftover; i++)
-                    {
-                        // Use both synchronous and asynchronous continuations
-                        TaskContinuationOptions tco = ((i % 2) == 0) ? TaskContinuationOptions.None : TaskContinuationOptions.ExecuteSynchronously;
-                        normalContinuations[i] = antecedent.ContinueWith(normalAction, tco);
-
-                        // If you've hit completeAfter or cancelAfter, take the approriate action
-                        if ((i + 1) == completeAfter) completionTcs.TrySetResult(true); // Asynchronously completes the antecedent
-                        if ((i + 1) == cancelAfter) cancellationTcs.TrySetResult(true); // Asynchronously initiates cancellation of "to be canceled" tasks
-                    }
-                });
-
-            Task.WaitAll(taskA, taskB);
-            Task.WaitAll(normalContinuations);
-
-            try
-            {
-                Task.WaitAll(cancelContinuations);
-            }
-            catch (AggregateException ae)
-            {
-                // We may get AE<TCE> from WaitAll on cancelContinuations.  If so, just eat it.
-                EnsureExceptionIsAEofTCE(ae,
-                   "ContinueWithTortureTest: > FAILED.  Did not expect anything exception AE<TCE> from cancelContinuations.Wait()");
-            }
-
-            Assert.True(normalCount == numLeftover,
-               "ContinueWithTortureTest: > FAILED! normalCount mismatch (exp " + numLeftover + " got " + normalCount + ")");
-            Assert.True(canceledCount == numCanceled,
-               "ContinueWithTortureTest: > FAILED! canceledCount mismatch (exp + " + numCanceled + " got " + canceledCount + ")");
-        }
 
         // Ensures that the specified action throws a AggregateException wrapping a TaskCanceledException
         public static void EnsureTaskCanceledExceptionThrown(Action action, string message)
