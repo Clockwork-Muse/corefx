@@ -192,6 +192,51 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
+        public static void Task_ContinueWith_Task_PreCanceledToken()
+        {
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith(t => { }, token));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith(t => { }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith((t, o) => { }, null, token));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith((t, o) => { }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Task_ContinueWith_Future_PreCanceledToken()
+        {
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith(t => 0, token));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith(t => 0, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith((t, o) => 0, null, token));
+            ContinueWith_PreCanceledToken(new Task(() => { }), (task, token) => task.ContinueWith((t, o) => 0, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Task_PreCanceledToken()
+        {
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith(t => { }, token));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith(t => { }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith((t, o) => { }, null, token));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith((t, o) => { }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Future_PreCanceledToken()
+        {
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith(t => 0, token));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith(t => 0, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith((t, o) => 0, null, token));
+            ContinueWith_PreCanceledToken(new Task<int>(() => 0), (task, token) => task.ContinueWith((t, o) => 0, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        private static void ContinueWith_PreCanceledToken<T, U>(T task, Func<T, CancellationToken, U> cont) where T : Task where U : Task
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+            source.Cancel();
+            U continuation = cont(task, source.Token);
+
+            Functions.AssertCanceled(continuation, source.Token);
+        }
+
+        [Fact]
         public static void RunContinueWithPreCancelTests()
         {
             Action<Task, bool, string> EnsureCompletionStatus = delegate (Task task, bool shouldBeCompleted, string message)
