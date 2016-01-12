@@ -407,44 +407,71 @@ namespace System.Threading.Tasks.Tests
             Assert.Throws<ArgumentOutOfRangeException>(() => { new Task<int>(() => 0).ContinueWith(_ => 0, options); });
         }
 
-        // Test what happens when you cancel a task in the middle of a continuation chain.
         [Fact]
-        public static void RunContinuationCancelTest()
+        public static void Task_ContinueWith_Task_CancelBeforeRun()
         {
-            bool t1Ran = false;
-            bool t3Ran = false;
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); }, token));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, null, token));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
 
-            Task t1 = new Task(delegate { t1Ran = true; });
+        [Fact]
+        public static void Task_ContinueWith_Future_CancelBeforeRun()
+        {
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); return 0; }, token));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); return 0; }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); return 0; }, null, token));
+            ContinueWith_CancelBeforeRun(flag => new Task(() => { flag.Trip(); }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); return 0; }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
 
-            CancellationTokenSource ctsForT2 = new CancellationTokenSource();
-            Task t2 = t1.ContinueWith((ContinuedTask) =>
-                        {
-                            Assert.True(false, string.Format("RunContinuationCancelTest: > Failed!  t2 should not have run."));
-                        }, ctsForT2.Token);
+        [Fact]
+        public static void Future_ContinueWith_Task_CancelBeforeRun()
+        {
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); }, token));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, null, token));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
 
-            Task t3 = t2.ContinueWith((ContinuedTask) =>
-            {
-                t3Ran = true;
-            });
+        [Fact]
+        public static void Future_ContinueWith_Future_CancelBeforeRun()
+        {
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); return 0; }, token));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith(t => { flag.Trip(); return 0; }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); return 0; }, null, token));
+            ContinueWith_CancelBeforeRun(flag => new Task<int>(() => { flag.Trip(); return 0; }), (task, token, flag) => task.ContinueWith((t, o) => { flag.Trip(); return 0; }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
 
-            // Cancel the middle task in the chain.  Should fire off t3.
-            ctsForT2.Cancel();
+        // Test what happens when you cancel a task in the middle of a continuation chain.
+        private static void ContinueWith_CancelBeforeRun<T, U>(Func<Flag, T> init, Func<T, CancellationToken, Flag, U> cont) where T : Task where U : Task
+        {
+            Flag initial = new Flag();
+            Flag middle = new Flag();
 
-            // Start the first task in the chain.  Should hold off from kicking off (canceled) t2.
-            t1.Start();
+            CancellationTokenSource source = new CancellationTokenSource();
 
-            t1.Wait(5000); // should be more than enough time for either of these
-            t3.Wait(5000);
+            T i = init(initial);
+            U continuation = cont(i, source.Token, middle);
+            Task<bool> end = continuation.ContinueWith(_ => true);
 
-            if (!t1Ran)
-            {
-                Assert.True(false, string.Format("RunContinuationCancelTest: > Failed!  t1 should have run."));
-            }
+            Assert.False(i.IsCompleted);
+            Assert.False(continuation.IsCompleted);
+            Assert.False(end.IsCompleted);
 
-            if (!t3Ran)
-            {
-                Assert.True(false, string.Format("RunContinuationCancelTest: > Failed!  t3 should have run."));
-            }
+            // Cancel the middle task in the chain.  Should fire off end.
+            source.Cancel();
+            Assert.True(SpinWait.SpinUntil(() => end.IsCompleted, MaxSafeWait));
+
+            Functions.AssertComplete(end, true);
+            Functions.AssertCanceled(continuation, source.Token);
+
+            // Start the first task in the chain.  Should hold off from kicking off (canceled) middle continuation.
+            i.Start();
+            Assert.True(SpinWait.SpinUntil(() => initial.IsTripped, MaxSafeWait));
+
+            Assert.False(middle.IsTripped);
+            Functions.AssertCanceled(continuation, source.Token);
         }
 
         [Fact]
