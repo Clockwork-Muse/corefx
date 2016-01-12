@@ -393,6 +393,12 @@ namespace System.Threading.Tasks.Tests
         [InlineData(0x1000000)]
         [InlineData(TaskContinuationOptions.LongRunning | TaskContinuationOptions.ExecuteSynchronously)]
         [InlineData(TaskContinuationOptions.NotOnRanToCompletion | TaskContinuationOptions.NotOnFaulted | TaskContinuationOptions.NotOnCanceled)]
+        [InlineData(TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.NotOnCanceled)]
+        [InlineData(TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.NotOnFaulted)]
+        [InlineData(TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.NotOnRanToCompletion)]
+        [InlineData(TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.OnlyOnRanToCompletion)]
+        [InlineData(TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.OnlyOnRanToCompletion)]
+        [InlineData(TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.OnlyOnFaulted)]
         public static void ContinueWith_IllegalContinuationOptions(TaskContinuationOptions options)
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => { new Task(() => { /* do nothing */}).ContinueWith(_ => { }, options); });
