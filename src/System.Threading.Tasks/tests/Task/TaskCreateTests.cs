@@ -177,8 +177,27 @@ namespace System.Threading.Tasks.Tests
             T task = create(source.Token);
             source.Cancel();
 
-            Assert.True(task.IsCanceled);
-            Assert.Equal(TaskStatus.Canceled, task.Status);
+            Functions.AssertCanceled(task, source.Token);
+        }
+
+        [Fact]
+        public static void TaskCanceled_Test()
+        {
+            AssertCanceled(token => new Task<bool>(() => true, token));
+            AssertCanceled(token => new Task<bool>(() => true, token, TaskCreationOptions.None));
+            AssertCanceled(token => new Task<bool>(ignored => true, new object(), token, TaskCreationOptions.None));
+            AssertCanceled(token => new Task(() => { }, token));
+            AssertCanceled(token => new Task(() => { }, token, TaskCreationOptions.None));
+            AssertCanceled(token => new Task(ignored => { }, new object(), token, TaskCreationOptions.None));
+        }
+
+        private static void AssertCanceled<T>(Func<CancellationToken, T> create) where T : Task
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+            source.Cancel();
+            T task = create(source.Token);
+
+            Functions.AssertCanceled(task, source.Token);
         }
 
         [Fact]
