@@ -388,38 +388,17 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
-        [Fact]
-        public static void RunContinueWithParamsTest_IllegalArgs()
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(0x1000000)]
+        [InlineData(TaskContinuationOptions.LongRunning | TaskContinuationOptions.ExecuteSynchronously)]
+        [InlineData(TaskContinuationOptions.NotOnRanToCompletion | TaskContinuationOptions.NotOnFaulted | TaskContinuationOptions.NotOnCanceled)]
+        public static void ContinueWith_IllegalContinuationOptions(TaskContinuationOptions options)
         {
-            Task t1 = new Task(delegate { });
-
-            try
-            {
-                Task t2 = t1.ContinueWith((ooo) => { }, (TaskContinuationOptions)0x1000000);
-                Assert.True(false, string.Format("RunContinueWithParamsTest: > FAILED.  Should have seen exception from illegal continuation options."));
-            }
-            catch { }
-
-            try
-            {
-                Task t2 = t1.ContinueWith((ooo) => { }, TaskContinuationOptions.LongRunning | TaskContinuationOptions.ExecuteSynchronously);
-                Assert.True(false, string.Format("RunContinueWithParamsTest: > FAILED.  Should have seen exception when combining LongRunning and ExecuteSynchronously"));
-            }
-            catch { }
-
-            try
-            {
-                Task t2 = t1.ContinueWith((ooo) => { },
-                            TaskContinuationOptions.NotOnRanToCompletion |
-                            TaskContinuationOptions.NotOnFaulted |
-                            TaskContinuationOptions.NotOnCanceled);
-                Assert.True(false, string.Format("RunContinueWithParamsTest: > FAILED.  Should have seen exception from illegal NotOnAny continuation options."));
-            }
-            catch (Exception)
-            { }
-
-            t1.Start();
-            t1.Wait();
+            Assert.Throws<ArgumentOutOfRangeException>(() => { new Task(() => { /* do nothing */}).ContinueWith(_ => { }, options); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { new Task(() => { /* do nothing */}).ContinueWith(_ => 0, options); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { new Task<int>(() => 0).ContinueWith(_ => { }, options); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { new Task<int>(() => 0).ContinueWith(_ => 0, options); });
         }
 
         // Test what happens when you cancel a task in the middle of a continuation chain.
