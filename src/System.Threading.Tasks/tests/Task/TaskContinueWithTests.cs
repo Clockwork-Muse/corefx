@@ -14,6 +14,8 @@ namespace System.Threading.Tasks.Tests
     {
         #region ContinueWith Tests
 
+        private static readonly TimeSpan MaxSafeWait = TimeSpan.FromMinutes(1);
+
         [Fact]
         public static void AsyncState_Null()
         {
@@ -237,60 +239,62 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
-        public static void RunContinueWithPreCancelTests()
+        public static void Task_ContinueWith_Task_LazyCancellation_PreCanceledToken()
         {
-            Action<Task, bool, string> EnsureCompletionStatus = delegate (Task task, bool shouldBeCompleted, string message)
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task(() => { mres.Wait(); }), (task, token) => task.ContinueWith(t => { }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task(() => { mres.Wait(); }), (task, token) => task.ContinueWith((t, o) => { }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Task_ContinueWith_Future_LazyCancellation_PreCanceledToken()
+        {
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task(() => { mres.Wait(); }), (task, token) => task.ContinueWith(t => 0, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task(() => { mres.Wait(); }), (task, token) => task.ContinueWith((t, o) => 0, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Task_LazyCancellation_PreCanceledToken()
+        {
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task<int>(() => { mres.Wait(); return 0; }), (task, token) => task.ContinueWith(t => { }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task<int>(() => { mres.Wait(); return 0; }), (task, token) => task.ContinueWith((t, o) => { }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Future_LazyCancellation_PreCanceledToken()
+        {
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task<int>(() => { mres.Wait(); return 0; }), (task, token) => task.ContinueWith(t => 0, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_LazyCancellation_PreCanceledToken(mres => new Task<int>(() => { mres.Wait(); return 0; }), (task, token) => task.ContinueWith((t, o) => 0, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        private static void ContinueWith_LazyCancellation_PreCanceledToken<T, U>(Func<ManualResetEventSlim, T> init, Func<T, CancellationToken, U> cont) where T : Task where U : Task
+        {
+            using (ManualResetEventSlim mres = new ManualResetEventSlim(false))
             {
-                if (task.IsCompleted != shouldBeCompleted)
-                {
-                    Assert.True(false, string.Format("    > FAILED.  {0}.", message));
-                }
-            };
+                CancellationTokenSource source = new CancellationTokenSource();
+                source.Cancel();
 
-            CancellationTokenSource cts = new CancellationTokenSource();
-            cts.Cancel();
-            ManualResetEvent mres = new ManualResetEvent(false);
-            // Pre-increment the dontCounts for pre-canceled continuations to make final check easier
-            // (i.e., all counts should be 1 at end).
-            int[] doneCount = { 0, 0, 1, 0, 1, 0 };
+                T task = init(mres);
+                U continuation = cont(task, source.Token);
 
-            Task t1 = new Task(delegate { doneCount[0]++; });
-            Task c1 = t1.ContinueWith(_ => { doneCount[1]++; });
-            Task c2 = c1.ContinueWith(_ => { mres.WaitOne(); doneCount[2]++; }, cts.Token);
-            Task c3 = c2.ContinueWith(_ => { mres.WaitOne(); doneCount[3]++; });
+                Assert.False(task.IsCompleted);
+                Assert.Equal(TaskStatus.Created, task.Status);
+                Assert.False(continuation.IsCompleted);
+                Assert.Equal(TaskStatus.WaitingForActivation, continuation.Status);
 
-            Task c4 = c3.ContinueWith(_ => { mres.WaitOne(); doneCount[4]++; }, cts.Token,
-                TaskContinuationOptions.LazyCancellation, TaskScheduler.Default);
+                task.Start();
 
-            Task c5 = c4.ContinueWith(_ => { mres.WaitOne(); doneCount[5]++; });
-            EnsureCompletionStatus(c2, true, "RunContinueWithPreCancelTests: c2 should have completed (canceled) upon construction");
-            EnsureCompletionStatus(c4, false, "RunContinueWithPreCancelTests: c4 should NOT have completed (canceled) upon construction");
-            EnsureCompletionStatus(t1, false, "RunContinueWithPreCancelTests: t1 should NOT have completed before being started");
-            EnsureCompletionStatus(c1, false, "RunContinueWithPreCancelTests: c1 should NOT have completed before antecedent completed");
-            EnsureCompletionStatus(c3, false, "RunContinueWithPreCancelTests: c3 should NOT have completed before mres was set");
-            EnsureCompletionStatus(c5, false, "RunContinueWithPreCancelTests: c5 should NOT have completed before mres was set");
+                Assert.True(SpinWait.SpinUntil(() => task.Status == TaskStatus.Running, MaxSafeWait));
 
-            // These should be done already.  And Faulted.
-            EnsureTaskCanceledExceptionThrown(() => { c2.Wait(); }, "RunContinueWithPreCancelTests: Expected c2.Wait to throw AE/TCE");
+                Assert.False(continuation.IsCompleted);
+                Assert.Equal(TaskStatus.WaitingForActivation, continuation.Status);
 
-            mres.Set();
-            Debug.WriteLine("RunContinueWithPreCancelTests: Waiting for tasks to complete... if we hang here, something went wrong.");
-            c3.Wait();
-            EnsureTaskCanceledExceptionThrown(() => { c4.Wait(); }, "RunContinueWithPreCancelTests: Expected c4.Wait to throw AE/TCE");
-            c5.Wait();
+                mres.Set();
+                task.Wait();
 
-            EnsureCompletionStatus(t1, false, "RunContinueWithPreCancelTests: t1 should NOT have completed (post-mres.Set()) before being started");
-            EnsureCompletionStatus(c1, false, "RunContinueWithPreCancelTests: c1 should NOT have completed (post-mres.Set()) before antecedent completed");
+                // Completion may not be immediate (subject to threading whims), but should be "soon".
+                Assert.True(SpinWait.SpinUntil(() => continuation.IsCompleted, MaxSafeWait));
 
-            t1.Start();
-            c1.Wait();
-
-            for (int i = 0; i < 6; i++)
-            {
-                if (doneCount[i] != 1)
-                {
-                    Assert.True(false, string.Format(string.Format("RunContinueWithPreCancelTests: > FAILED.  doneCount[{0}] should be 1, is {1}", i, doneCount[i])));
-                }
+                Functions.AssertCanceled(continuation, source.Token);
             }
         }
 
