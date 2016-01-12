@@ -475,57 +475,6 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
-        public static void RunContinueWithExceptionTestsNoState()
-        {
-            //
-            // Test exceptional behavior for continuations off of Tasks
-            //
-            Task t1 = Task.Factory.StartNew(() => { });
-            t1.Wait();
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith((Action<Task>)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith(_ => { }, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith((Func<Task, int>)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith(_ => 5, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { t1.ContinueWith(_ => 5, CancellationToken.None, TaskContinuationOptions.None, (TaskScheduler)null); });
-            //
-            // Test exceptional behavior for continuations off of Task<int>s
-            //
-            Task<int> f1 = Task<int>.Factory.StartNew(() => 10);
-            f1.Wait();
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith((Action<Task<int>>)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith(_ => { }, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith((Func<Task<int>, int>)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith(_ => 5, (TaskScheduler)null); });
-
-            Assert.Throws<ArgumentNullException>(
-               () => { f1.ContinueWith(_ => 5, CancellationToken.None, TaskContinuationOptions.None, (TaskScheduler)null); });
-        }
-
-        [Fact]
         public static void RunContinueWithAllParamsTestsNoState()
         {
             for (int i = 0; i < 2; i++)
@@ -1562,6 +1511,74 @@ namespace System.Threading.Tasks.Tests
             }).Unwrap();
 
             mcwExceptionChecker(mcw2, "Future antecedent, throw in returned Future");
+        }
+
+        [Fact]
+        public static void ContinueWith_ArgumentNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task>)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task>)null, new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task>)null, TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task>)null, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith(_ => { }, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task>)null, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith(_ => { }, new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, int>)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, int>)null, new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, int>)null, TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, int>)null, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith(_ => 0, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, int>)null, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith(_ => 0, new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>>)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>>)null, new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>>)null, TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>>)null, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith(_ => { }, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>>)null, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith(_ => { }, new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, int>)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, int>)null, new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, int>)null, TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, int>)null, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith(_ => 0, (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, int>)null, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith(_ => 0, new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task, object>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task, object>)null, new object(), new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task, object>)null, new object(), TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task, object>)null, new object(), TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((t, o) => { }, new object(), (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Action<Task, object>)null, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, object, int>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, object, int>)null, new object(), new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, object, int>)null, new object(), TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, object, int>)null, new object(), TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((t, o) => 0, new object(), (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((Func<Task, object, int>)null, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task(() => { }).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>, object>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>, object>)null, new object(), new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>, object>)null, new object(), TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>, object>)null, new object(), TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Action<Task<int>, object>)null, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
+
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, object, int>)null, new object()); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, object, int>)null, new object(), new CancellationTokenSource().Token); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, object, int>)null, new object(), TaskContinuationOptions.None); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, object, int>)null, new object(), TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), (TaskScheduler)null); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((Func<Task<int>, object, int>)null, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default); });
+            Assert.Throws<ArgumentNullException>(() => { new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, (TaskScheduler)null); });
         }
 
         #endregion
