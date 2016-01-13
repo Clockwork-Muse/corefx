@@ -157,6 +157,71 @@ namespace System.Threading.Tasks.Tests
             Assert.Equal(create, new Task<int>(() => 0).ContinueWith(_ => 0, new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
         }
 
+        [Fact]
+        public static void TaskScheduler_Used()
+        {
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith(_ => { capture(); return 0; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object()));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object()));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task(() => { }), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object()));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object()));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), new CancellationTokenSource().Token));
+            TaskScheduler_Used(TaskScheduler.Default, new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), TaskContinuationOptions.None));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), scheduler));
+            TaskScheduler_Used(new QUWITaskScheduler(), new Task<int>(() => 0), (task, capture, scheduler) => task.ContinueWith((t, o) => { capture(); return 0; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, scheduler));
+        }
+
+        private static void TaskScheduler_Used<T, U>(TaskScheduler expected, T task, Func<T, Action, TaskScheduler, U> create) where T : Task where U : Task
+        {
+            TaskScheduler seen = null;
+            Action capture = () => { seen = TaskScheduler.Current; };
+            U continuation = create(task, capture, expected);
+
+            task.Start();
+            continuation.Wait();
+            // Verify that we saw the same scheduler we supplied.
+            // In some cases none was supplied (no parameter used) - this becomes TaskScheduler.Default
+            Assert.Equal(expected, seen);
+        }
+
         // Stresses on multiple continuations from a single antecedent
         [Theory]
         // All "leftover" continuations will be immediately scheduled.
