@@ -612,6 +612,76 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
+        public static void Task_ContinueWith_Task_CancelDuringRun()
+        {
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Task_ContinueWith_Future_CancelDuringRun()
+        {
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task(() => { }), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Task_CancelDuringRun()
+        {
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Future_CancelDuringRun()
+        {
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith(t => { cancel(); return 0; }, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token, TaskContinuationOptions.None, TaskScheduler.Default));
+            ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
+        }
+
+        // Test what happens when you cancel a task in the middle of a continuation chain.
+        private static void ContinueWith_CancelDuringRun<T, U>(T task, Func<T, CancellationToken, Action, U> cont) where T : Task where U : Task
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+
+            Action cancel = () =>
+            {
+                source.Cancel();
+                source.Token.ThrowIfCancellationRequested();
+            };
+
+            U continuation = cont(task, source.Token, cancel);
+
+            // Created not-complete
+            Assert.False(task.IsCompleted);
+            Assert.False(continuation.IsCompleted);
+
+            // Start the initial task; continuation will auto-fire and cancel itself.
+            task.Start();
+
+            Assert.True(SpinWait.SpinUntil(() => continuation.IsCompleted, MaxSafeWait));
+            Functions.AssertCanceled(continuation, source.Token);
+
+            Functions.AssertComplete(task);
+        }
+
+        [Fact]
         public static void RunContinueWithAllParamsTestsNoState()
         {
             for (int i = 0; i < 2; i++)
@@ -863,46 +933,6 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
-        // Test what happens when you cancel a task in the middle of a continuation chain.
-        [Fact]
-        public static void RunContinuationCancelTest_State()
-        {
-            bool t1Ran = false;
-            bool t3Ran = false;
-
-            Task t1 = new Task(delegate { t1Ran = true; });
-            string stateParam = "test"; //used as a state parametr for the continuation if the useStateParam is true
-            CancellationTokenSource ctsForT2 = new CancellationTokenSource();
-            Task t2 = t1.ContinueWith((ContinuedTask, obj) =>
-            {
-                Assert.True(false, string.Format("RunContinuationCancelTest_State    > Failed!  t2 should not have run."));
-            }, stateParam, ctsForT2.Token);
-
-            Task t3 = t2.ContinueWith((ContinuedTask) =>
-            {
-                t3Ran = true;
-            });
-
-            // Cancel the middle task in the chain.  Should fire off t3.
-            ctsForT2.Cancel();
-
-            // Start the first task in the chain.  Should hold off from kicking off (canceled) t2.
-            t1.Start();
-
-            t1.Wait(5000); // should be more than enough time for either of these
-            t3.Wait(5000);
-
-            if (!t1Ran)
-            {
-                Assert.True(false, string.Format("RunContinuationCancelTest_State    > Failed!  t1 should have run."));
-            }
-
-            if (!t3Ran)
-            {
-                Assert.True(false, string.Format("RunContinuationCancelTest_State    > Failed!  t3 should have run."));
-            }
-        }
-
         [Fact]
         public static void TestNoDeadlockOnContinueWith()
         {
@@ -1101,29 +1131,6 @@ namespace System.Threading.Tasks.Tests
 
             barrier.SignalAndWait(); // alert task that we're done waiting
             task2.Wait();
-        }
-
-        [Fact]
-        public static void RunBasicFutureTest_Negative()
-        {
-            Task<int> future = new Task<int>(() => 1);
-            Assert.ThrowsAsync<ArgumentNullException>(
-               () => future.ContinueWith((Action<Task<int>, Object>)null, null, CancellationToken.None));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith((Action<Task<int>, Object>)null, null, TaskContinuationOptions.None));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith((Action<Task<int>, Object>)null, null, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith((t, s) => { }, null, CancellationToken.None, TaskContinuationOptions.None, null));
-
-            Assert.ThrowsAsync<ArgumentNullException>(
-               () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, CancellationToken.None));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, TaskContinuationOptions.None));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith<int>((Func<Task<int>, Object, int>)null, null, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default));
-            Assert.ThrowsAsync<ArgumentNullException>(
-              () => future.ContinueWith<int>((t, s) => 2, null, CancellationToken.None, TaskContinuationOptions.None, null));
         }
 
         [Fact]
