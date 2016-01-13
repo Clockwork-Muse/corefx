@@ -85,6 +85,78 @@ namespace System.Threading.Tasks.Tests
             return task;
         }
 
+        [Fact]
+        public static void ContinuationOptions_Default()
+        {
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => { }).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => { }, new object()).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => { }, new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => { }, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => { }, new object(), TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => 0).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => 0, new object()).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => 0, new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith(_ => 0, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task(() => { }).ContinueWith((t, o) => 0, new object(), TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => { }).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => { }, new object()).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => { }, new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => { }, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => 0).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => 0, new object()).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => 0, new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith(_ => 0, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(TaskCreationOptions.None, new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), TaskScheduler.Default).CreationOptions);
+        }
+
+        [Theory]
+        [InlineData(TaskCreationOptions.AttachedToParent, TaskContinuationOptions.AttachedToParent)]
+        [InlineData(TaskCreationOptions.DenyChildAttach, TaskContinuationOptions.DenyChildAttach)]
+        [InlineData(TaskCreationOptions.HideScheduler, TaskContinuationOptions.HideScheduler)]
+        [InlineData(TaskCreationOptions.LongRunning, TaskContinuationOptions.LongRunning)]
+        [InlineData(TaskCreationOptions.PreferFairness, TaskContinuationOptions.PreferFairness)]
+        [InlineData(TaskCreationOptions.RunContinuationsAsynchronously, TaskContinuationOptions.RunContinuationsAsynchronously)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.None)]
+        // Several options have no (later externally visible) equivalent
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.ExecuteSynchronously)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.NotOnCanceled)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.NotOnFaulted)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.NotOnRanToCompletion)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.OnlyOnCanceled)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.OnlyOnFaulted)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.OnlyOnRanToCompletion)]
+        [InlineData(TaskCreationOptions.None, TaskContinuationOptions.LazyCancellation)]
+        public static void ContinuationOptions_Given(TaskCreationOptions create, TaskContinuationOptions cont)
+        {
+            Assert.Equal(create, new Task(() => { }).ContinueWith((t, o) => { }, new object(), cont).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith(_ => { }, cont).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith(_ => { }, new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(create, new Task(() => { }).ContinueWith((t, o) => 0, new object(), cont).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith(_ => 0, cont).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(create, new Task(() => { }).ContinueWith(_ => 0, new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), cont).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith(_ => { }, cont).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith((t, o) => { }, new object(), new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith(_ => { }, new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), cont).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith(_ => 0, cont).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith((t, o) => 0, new object(), new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+            Assert.Equal(create, new Task<int>(() => 0).ContinueWith(_ => 0, new CancellationTokenSource().Token, cont, TaskScheduler.Default).CreationOptions);
+        }
+
         // Stresses on multiple continuations from a single antecedent
         [Theory]
         // All "leftover" continuations will be immediately scheduled.
