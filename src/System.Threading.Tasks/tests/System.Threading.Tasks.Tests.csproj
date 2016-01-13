@@ -14,6 +14,7 @@
     <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
       <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
     </Compile>
+    <Compile Include="Continuation\Continuation_AsyncState.cs" />
     <Compile Include="Helpers\Flag.cs" />
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\QUWITaskScheduler.cs" />
