@@ -655,7 +655,6 @@ namespace System.Threading.Tasks.Tests
             ContinueWith_CancelDuringRun(new Task<int>(() => 0), (task, token, cancel) => task.ContinueWith((t, o) => { cancel(); return 0; }, null, token, TaskContinuationOptions.LazyCancellation, TaskScheduler.Default));
         }
 
-        // Test what happens when you cancel a task in the middle of a continuation chain.
         private static void ContinueWith_CancelDuringRun<T, U>(T task, Func<T, CancellationToken, Action, U> cont) where T : Task where U : Task
         {
             CancellationTokenSource source = new CancellationTokenSource();
