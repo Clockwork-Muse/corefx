@@ -26,7 +26,7 @@ namespace System.Threading.Tasks.Tests
         /// <param name="inner">Will be run with a RanToCompletion, Faulted, and Canceled task.</param>
         [Theory]
         [MemberData(nameof(CompletedNonGenericTasks))]
-        public void NonGeneric_Completed_Completed(Task inner) 
+        public void NonGeneric_Completed_Completed(Task inner)
         {
             Task<Task> outer = Task.FromResult(inner);
             Task unwrappedInner = outer.Unwrap();
@@ -56,7 +56,7 @@ namespace System.Threading.Tasks.Tests
         /// <param name="inner">The inner task.</param>
         [Theory]
         [MemberData(nameof(CompletedNonGenericTasks))]
-        public void NonGeneric_NotCompleted_Completed(Task inner) 
+        public void NonGeneric_NotCompleted_Completed(Task inner)
         {
             var outerTcs = new TaskCompletionSource<Task>();
             Task<Task> outer = outerTcs.Task;
@@ -94,7 +94,7 @@ namespace System.Threading.Tasks.Tests
         [InlineData(TaskStatus.RanToCompletion)]
         [InlineData(TaskStatus.Faulted)]
         [InlineData(TaskStatus.Canceled)]
-        public void NonGeneric_Completed_NotCompleted(TaskStatus innerStatus) 
+        public void NonGeneric_Completed_NotCompleted(TaskStatus innerStatus)
         {
             var innerTcs = new TaskCompletionSource<bool>();
             Task inner = innerTcs.Task;
@@ -108,9 +108,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(true);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new DeliberateTestException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
                     break;
@@ -141,9 +143,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(42);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new DeliberateTestException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
                     break;
@@ -164,7 +168,7 @@ namespace System.Threading.Tasks.Tests
         [InlineData(false, TaskStatus.RanToCompletion)]
         [InlineData(false, TaskStatus.Canceled)]
         [InlineData(false, TaskStatus.Faulted)]
-        public void NonGeneric_NotCompleted_NotCompleted(bool outerCompletesFirst, TaskStatus innerStatus) 
+        public void NonGeneric_NotCompleted_NotCompleted(bool outerCompletesFirst, TaskStatus innerStatus)
         {
             var innerTcs = new TaskCompletionSource<bool>();
             Task inner = innerTcs.Task;
@@ -186,14 +190,16 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(true);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new DeliberateTestException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
             }
-            
+
             if (!outerCompletesFirst)
             {
                 Assert.False(unwrappedInner.IsCompleted);
@@ -237,9 +243,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(42);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new DeliberateTestException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
@@ -281,9 +289,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     outerTcs.SetResult(null);
                     break;
+
                 case TaskStatus.Canceled:
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
+
                 case TaskStatus.Faulted:
                     outerTcs.SetException(new DeliberateTestException());
                     break;
@@ -299,6 +309,7 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
+
                 default:
                     AssertTasksAreEqual(outer, unwrappedInner);
                     break;
@@ -332,9 +343,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     outerTcs.SetResult(null); // cancellation
                     break;
+
                 case TaskStatus.Canceled:
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
+
                 case TaskStatus.Faulted:
                     outerTcs.SetException(new DeliberateTestException());
                     break;
@@ -350,6 +363,7 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
+
                 default:
                     AssertTasksAreEqual(outer, unwrappedInner);
                     break;
@@ -1017,6 +1031,7 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.Faulted:
                     Assert.Equal((IEnumerable<Exception>)expected.Exception.InnerExceptions, actual.Exception.InnerExceptions);
                     break;
+
                 case TaskStatus.Canceled:
                     Assert.Equal(GetCanceledTaskToken(expected), GetCanceledTaskToken(actual));
                     break;
@@ -1061,5 +1076,21 @@ namespace System.Threading.Tasks.Tests
             return exc.CancellationToken;
         }
 
+        private static int NestedLevels(Exception e)
+        {
+            int levels = 0;
+            while (e != null)
+            {
+                levels++;
+                AggregateException ae = e as AggregateException;
+                if (ae != null)
+                {
+                    e = ae.InnerExceptions[0];
+                }
+                else break;
+            }
+
+            return levels;
+        }
     }
 }

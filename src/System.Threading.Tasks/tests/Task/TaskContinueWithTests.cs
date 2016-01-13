@@ -1140,23 +1140,6 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
-        private static int NestedLevels(Exception e)
-        {
-            int levels = 0;
-            while (e != null)
-            {
-                levels++;
-                AggregateException ae = e as AggregateException;
-                if (ae != null)
-                {
-                    e = ae.InnerExceptions[0];
-                }
-                else break;
-            }
-
-            return levels;
-        }
-
         #endregion
     }
 }
