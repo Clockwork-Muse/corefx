@@ -734,8 +734,6 @@ namespace System.Threading.Tasks.Tests
 
         private static void ContinueWith_ThrowException<T, U>(T task, Func<T, Action, U> cont) where T : Task where U : Task
         {
-            CancellationTokenSource source = new CancellationTokenSource();
-
             Action exception = () => { throw new DeliberateTestException(); };
 
             U continuation = cont(task, exception);
