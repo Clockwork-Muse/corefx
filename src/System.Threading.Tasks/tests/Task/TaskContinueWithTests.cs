@@ -681,6 +681,79 @@ namespace System.Threading.Tasks.Tests
         }
 
         [Fact]
+        public static void ContinueWith_ThrowException()
+        {
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); }));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); }, new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); }, TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); }, TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); }));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); }, new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); }, TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); }, TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith(_ => { exception(); return 0; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object()));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object()));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task(() => { }), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object()));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object()));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), TaskContinuationOptions.None));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), TaskScheduler.Default));
+            ContinueWith_ThrowException(new Task<int>(() => 0), (task, exception) => task.ContinueWith((t, o) => { exception(); return 0; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        private static void ContinueWith_ThrowException<T, U>(T task, Func<T, Action, U> cont) where T : Task where U : Task
+        {
+            CancellationTokenSource source = new CancellationTokenSource();
+
+            Action exception = () => { throw new DeliberateTestException(); };
+
+            U continuation = cont(task, exception);
+
+            // Created not-complete
+            Assert.False(task.IsCompleted);
+            Assert.False(continuation.IsCompleted);
+
+            // Start the initial task; continuation will auto-fire and throw.
+            task.Start();
+
+            Assert.True(SpinWait.SpinUntil(() => continuation.IsCompleted, MaxSafeWait));
+            Functions.AssertFaulted<DeliberateTestException>(continuation);
+
+            Functions.AssertComplete(task);
+        }
+
+        [Fact]
         public static void RunContinueWithAllParamsTestsNoState()
         {
             for (int i = 0; i < 2; i++)
