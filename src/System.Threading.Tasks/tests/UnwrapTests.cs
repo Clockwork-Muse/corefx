@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using Xunit;
 
@@ -461,6 +462,517 @@ namespace System.Threading.Tasks.Tests
 
             // This test will overflow if it fails.
             Assert.Equal(DiveDepth, func(0).Result);
+        }
+
+        // Make sure that cancellation works for monadic versions of ContinueWith()
+        [Fact]
+        public static void RunUnwrapTests()
+        {
+            Task taskRoot = null;
+            Task<int> futureRoot = null;
+
+            Task<int> c1 = null;
+            Task<int> c2 = null;
+            Task<int> c3 = null;
+            Task<int> c4 = null;
+            Task c5 = null;
+            Task c6 = null;
+            Task c7 = null;
+            Task c8 = null;
+
+            //
+            // Basic functionality tests
+            //
+            taskRoot = new Task(delegate { });
+            futureRoot = new Task<int>(delegate { return 10; });
+            ManualResetEvent mres = new ManualResetEvent(false);
+            Action<Task, bool, string> checkCompletionState = delegate (Task ctask, bool shouldBeCompleted, string scenario)
+            {
+                if (ctask.IsCompleted != shouldBeCompleted)
+                {
+                    Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  {0} expected IsCompleted = {1}", scenario, shouldBeCompleted));
+                }
+            };
+
+            c1 = taskRoot.ContinueWith((antecedent) => { return Task<int>.Factory.StartNew(delegate { mres.WaitOne(); return 1; }); }).Unwrap();
+            c2 = futureRoot.ContinueWith((antecedent) => { return Task<int>.Factory.StartNew(delegate { mres.WaitOne(); return 2; }); }).Unwrap();
+            var v3 = new Task<Task<int>>(delegate { return Task<int>.Factory.StartNew(delegate { mres.WaitOne(); return 3; }); });
+            c3 = v3.Unwrap();
+            c4 = Task.Factory.ContinueWhenAll(new Task[] { taskRoot, futureRoot }, completedTasks =>
+            {
+                int sum = 0;
+                for (int i = 0; i < completedTasks.Length; i++)
+                {
+                    Task tmp = completedTasks[i];
+                    if (tmp is Task<int>) sum += ((Task<int>)tmp).Result;
+                }
+                return Task.Factory.StartNew(delegate { mres.WaitOne(); return sum; });
+            }).Unwrap();
+            c5 = taskRoot.ContinueWith((antecedent) => { return Task.Factory.StartNew(delegate { mres.WaitOne(); }); }).Unwrap();
+            c6 = futureRoot.ContinueWith((antecedent) => { return Task.Factory.StartNew(delegate { mres.WaitOne(); }); }).Unwrap();
+            var v7 = new Task<Task>(delegate { return Task.Factory.StartNew(delegate { mres.WaitOne(); }); });
+            c7 = v7.Unwrap();
+            c8 = Task.Factory.ContinueWhenAny(new Task[] { taskRoot, futureRoot }, winner =>
+            {
+                return Task.Factory.StartNew(delegate { mres.WaitOne(); });
+            }).Unwrap();
+
+            //Debug.WriteLine(" Testing that Unwrap() products do not complete before antecedent starts...");
+            checkCompletionState(c1, false, "Task ==> Task<T>, antecedent unstarted");
+            checkCompletionState(c2, false, "Task<T> ==> Task<T>, antecedent unstarted");
+            checkCompletionState(c3, false, "StartNew ==> Task<T>, antecedent unstarted");
+            checkCompletionState(c4, false, "ContinueWhenAll => Task<T>, antecedent unstarted");
+            checkCompletionState(c5, false, "Task ==> Task, antecedent unstarted");
+            checkCompletionState(c6, false, "Task<T> ==> Task, antecedent unstarted");
+            checkCompletionState(c7, false, "StartNew ==> Task, antecedent unstarted");
+            checkCompletionState(c8, false, "ContinueWhenAny => Task, antecedent unstarted");
+
+            taskRoot.Start();
+            futureRoot.Start();
+            v3.Start();
+            v7.Start();
+
+            //Debug.WriteLine(" Testing that Unwrap() products do not complete before proxy source completes...");
+            checkCompletionState(c1, false, "Task ==> Task<T>, source task incomplete");
+            checkCompletionState(c2, false, "Task<T> ==> Task<T>, source task incomplete");
+            checkCompletionState(c3, false, "StartNew ==> Task<T>, source task incomplete");
+            checkCompletionState(c4, false, "ContinueWhenAll => Task<T>, source task incomplete");
+            checkCompletionState(c5, false, "Task ==> Task, source task incomplete");
+            checkCompletionState(c6, false, "Task<T> ==> Task, source task incomplete");
+            checkCompletionState(c7, false, "StartNew ==> Task, source task incomplete");
+            checkCompletionState(c8, false, "ContinueWhenAny => Task, source task incomplete");
+
+            mres.Set();
+            Debug.WriteLine("RunUnwrapTests:  Waiting on Unwrap() products... If we hang, something is wrong.");
+            Task.WaitAll(new Task[] { c1, c2, c3, c4, c5, c6, c7, c8 });
+
+            //Debug.WriteLine("    Testing that Unwrap() producs have consistent completion state...");
+            checkCompletionState(c1, true, "Task ==> Task<T>, Unwrapped task complete");
+            checkCompletionState(c2, true, "Task<T> ==> Task<T>, Unwrapped task complete");
+            checkCompletionState(c3, true, "StartNew ==> Task<T>, Unwrapped task complete");
+            checkCompletionState(c4, true, "ContinueWhenAll => Task<T>, Unwrapped task complete");
+            checkCompletionState(c5, true, "Task ==> Task, Unwrapped task complete");
+            checkCompletionState(c6, true, "Task<T> ==> Task, Unwrapped task complete");
+            checkCompletionState(c7, true, "StartNew ==> Task, Unwrapped task complete");
+            checkCompletionState(c8, true, "ContinueWhenAny => Task, Unwrapped task complete");
+
+            if (c1.Result != 1)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected c1.Result = 1, got {0}", c1.Result));
+            }
+
+            if (c2.Result != 2)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected c2.Result = 2, got {0}", c2.Result));
+            }
+
+            if (c3.Result != 3)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected c3.Result = 3, got {0}", c3.Result));
+            }
+
+            if (c4.Result != 10)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected c4.Result = 10, got {0}", c4.Result));
+            }
+
+            ////
+            //// Test against buggy schedulers
+            ////
+            //
+            //// More specifically, ensure that inline execution via synchronous continuations
+            //// causes the predictable exception from the NonInliningTaskScheduler.
+            //
+            //Task<Task> t1 = null;
+            //Task t2 = null;
+            //Task hanging1 = new TaskFactory(new NonInliningTaskScheduler()).StartNew(() =>
+            //{
+            //    // To avoid fast-path optimizations in Unwrap, ensure that both inner
+            //    // and outer tasks are not completed before Unwrap is called.  (And a
+            //    // good way to do this is to ensure that they are not even started!)
+            //    Task inner = new Task(() => { });
+            //    t1 = new Task<Task>(() => inner, TaskCreationOptions.AttachedToParent);
+            //    t2 = t1.Unwrap();
+            //    t1.Start();
+            //    inner.Start();
+            //});
+            //
+            //Debug.WriteLine("Buggy Scheduler Test 1 about to wait -- if we hang, we have a problem...");
+            //
+            //// Wait for task to complete, but do *not* inline it.
+            //((IAsyncResult)hanging1).AsyncWaitHandle.WaitOne();
+            //
+            //try
+            //{
+            //    hanging1.Wait();
+            //    Assert.True(false, string.Format("    > FAILED. Expected an exception."));
+            //    return false;
+            //}
+            //catch (Exception e) { }
+            //
+            //Task hanging2 = new TaskFactory(new NonInliningTaskScheduler()).StartNew(() =>
+            //{
+            //    // To avoid fast-path optimizations in Unwrap, ensure that both inner
+            //    // and outer tasks are not completed before Unwrap is called.  (And a
+            //    // good way to do this is to ensure that they are not even started!)
+            //    Task<int> inner = new Task<int>(() => 10);
+            //    Task<Task<int>> f1 = new Task<Task<int>>(() => inner, TaskCreationOptions.AttachedToParent);
+            //    Task<int> f2 = f1.Unwrap();
+            //    f1.Start();
+            //    inner.Start();
+            //});
+            //
+            //Debug.WriteLine("Buggy Scheduler Test 2 about to wait -- if we hang, we have a problem...");
+            //
+            //// Wait for task to complete, but do *not* inline it.
+            //((IAsyncResult)hanging2).AsyncWaitHandle.WaitOne();
+            //
+            //try
+            //{
+            //    hanging2.Wait();
+            //    Assert.True(false, string.Format("    > FAILED. Expected an exception."));
+            //    return false;
+            //}
+            //catch (Exception e) {  }
+        }
+
+        [Fact]
+        public static void RunUnwrapTests_ExceptionTests()
+        {
+            Task taskRoot = null;
+            Task<int> futureRoot = null;
+
+            Task<int> c1 = null;
+            Task<int> c2 = null;
+            Task<int> c3 = null;
+            Task<int> c4 = null;
+            Task c5 = null;
+            Task c6 = null;
+            Task c7 = null;
+            Task c8 = null;
+
+            Action doExc = delegate { throw new Exception("some exception"); };
+            //
+            // Exception tests
+            //
+            taskRoot = new Task(delegate { });
+            futureRoot = new Task<int>(delegate { return 10; });
+            c1 = taskRoot.ContinueWith(delegate (Task t) { doExc(); return Task<int>.Factory.StartNew(delegate { return 1; }); }).Unwrap();
+            c2 = futureRoot.ContinueWith(delegate (Task<int> t) { doExc(); return Task<int>.Factory.StartNew(delegate { return 2; }); }).Unwrap();
+            c3 = taskRoot.ContinueWith(delegate (Task t) { return Task<int>.Factory.StartNew(delegate { doExc(); return 3; }); }).Unwrap();
+            c4 = futureRoot.ContinueWith(delegate (Task<int> t) { return Task<int>.Factory.StartNew(delegate { doExc(); return 4; }); }).Unwrap();
+            c5 = taskRoot.ContinueWith(delegate (Task t) { doExc(); return Task.Factory.StartNew(delegate { }); }).Unwrap();
+            c6 = futureRoot.ContinueWith(delegate (Task<int> t) { doExc(); return Task.Factory.StartNew(delegate { }); }).Unwrap();
+            c7 = taskRoot.ContinueWith(delegate (Task t) { return Task.Factory.StartNew(delegate { doExc(); }); }).Unwrap();
+            c8 = futureRoot.ContinueWith(delegate (Task<int> t) { return Task.Factory.StartNew(delegate { doExc(); }); }).Unwrap();
+            taskRoot.Start();
+            futureRoot.Start();
+
+            Action<Task, string> excTest = delegate (Task ctask, string scenario)
+            {
+                try
+                {
+                    ctask.Wait();
+                    Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Exception in {0} did not throw on Wait().", scenario));
+                }
+                catch (AggregateException) { }
+                catch (Exception)
+                {
+                    Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Exception in {0} threw wrong exception.", scenario));
+                }
+                if (ctask.Status != TaskStatus.Faulted)
+                {
+                    Assert.True(false, string.Format("RunUnwrapTests: > FAILED. Exception in {0} resulted in wrong status: {1}", scenario, ctask.Status));
+                }
+            };
+
+            excTest(c1, "Task->Task<int> outer delegate");
+            excTest(c2, "Task<int>->Task<int> outer delegate");
+            excTest(c3, "Task->Task<int> inner delegate");
+            excTest(c4, "Task<int>->Task<int> inner delegate");
+            excTest(c5, "Task->Task outer delegate");
+            excTest(c6, "Task<int>->Task outer delegate");
+            excTest(c7, "Task->Task inner delegate");
+            excTest(c8, "Task<int>->Task inner delegate");
+
+            try
+            {
+                taskRoot.Wait();
+                futureRoot.Wait();
+            }
+            catch (Exception e)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Exception thrown while waiting for task/futureRoots used for exception testing: {0}", e));
+            }
+
+            //
+            // Exception handling
+            //
+            var c = Task.Factory.StartNew(() => { }).ContinueWith(_ =>
+                Task.Factory.StartNew(() =>
+                {
+                    Task.Factory.StartNew(delegate { throw new Exception("uh oh #1"); }, TaskCreationOptions.AttachedToParent);
+                    Task.Factory.StartNew(delegate { throw new Exception("uh oh #2"); }, TaskCreationOptions.AttachedToParent);
+                    Task.Factory.StartNew(delegate { throw new Exception("uh oh #3"); }, TaskCreationOptions.AttachedToParent);
+                    Task.Factory.StartNew(delegate { throw new Exception("uh oh #4"); }, TaskCreationOptions.AttachedToParent);
+                    return 1;
+                })
+            ).Unwrap();
+
+            try
+            {
+                c.Wait();
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Monadic continuation w/ excepted children failed to throw an exception."));
+            }
+            catch (AggregateException ae)
+            {
+                if (ae.InnerExceptions.Count != 4)
+                {
+                    Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Monadic continuation w/ faulted childred had {0} inner exceptions, expected 4", ae.InnerExceptions.Count));
+                    Assert.True(false, string.Format("RunUnwrapTests: > Exception = {0}", ae));
+                }
+            }
+        }
+
+        [Fact]
+        public static void RunUnwrapTests_CancellationTests()
+        {
+            Task taskRoot = null;
+            Task<int> futureRoot = null;
+
+            Task<int> c1 = null;
+            Task<int> c2 = null;
+            Task c5 = null;
+            Task c6 = null;
+            int c1val = 0;
+            int c2val = 0;
+            int c5val = 0;
+            int c6val = 0;
+
+            //
+            // Cancellation tests
+            //
+            CancellationTokenSource ctsForContainer = new CancellationTokenSource();
+            CancellationTokenSource ctsForC1 = new CancellationTokenSource();
+            CancellationTokenSource ctsForC2 = new CancellationTokenSource();
+            CancellationTokenSource ctsForC5 = new CancellationTokenSource();
+            CancellationTokenSource ctsForC6 = new CancellationTokenSource();
+
+            ManualResetEvent mres = new ManualResetEvent(false);
+
+            taskRoot = new Task(delegate { });
+            futureRoot = new Task<int>(delegate { return 20; });
+            Task container = Task.Factory.StartNew(delegate
+            {
+                c1 = taskRoot.ContinueWith(delegate (Task antecedent)
+                {
+                    Task<int> rval = new Task<int>(delegate { c1val = 1; return 10; });
+                    return rval;
+                }, ctsForC1.Token).Unwrap();
+
+                c2 = futureRoot.ContinueWith(delegate (Task<int> antecedent)
+                {
+                    Task<int> rval = new Task<int>(delegate { c2val = 1; return 10; });
+                    return rval;
+                }, ctsForC2.Token).Unwrap();
+
+                c5 = taskRoot.ContinueWith(delegate (Task antecedent)
+                {
+                    Task rval = new Task(delegate { c5val = 1; });
+                    return rval;
+                }, ctsForC5.Token).Unwrap();
+
+                c6 = futureRoot.ContinueWith(delegate (Task<int> antecedent)
+                {
+                    Task rval = new Task(delegate { c6val = 1; });
+                    return rval;
+                }, ctsForC6.Token).Unwrap();
+
+                mres.Set();
+
+                ctsForContainer.Cancel();
+            }, ctsForContainer.Token);
+
+            // Wait for c1, c2 to get initialized.
+            mres.WaitOne();
+
+            ctsForC1.Cancel();
+            try
+            {
+                c1.Wait();
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected Wait() to throw after cancellation of Task->Task<int>."));
+            }
+            catch { }
+            TaskStatus ts = c1.Status;
+            if (ts != TaskStatus.Canceled)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Direct cancellation of returned Task->Task<int> did not work -- status = {0}", ts));
+            }
+
+            ctsForC2.Cancel();
+            try
+            {
+                c2.Wait();
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected Wait() to throw after cancellation of Task<int>->Task<int>."));
+            }
+            catch { }
+            ts = c2.Status;
+            if (ts != TaskStatus.Canceled)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Direct cancellation of returned Task<int>->Task<int> did not work -- status = {0}", ts));
+            }
+
+            ctsForC5.Cancel();
+            try
+            {
+                c5.Wait();
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected Wait() to throw after cancellation of Task->Task."));
+            }
+            catch { }
+            ts = c5.Status;
+            if (ts != TaskStatus.Canceled)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Direct cancellation of returned Task->Task did not work -- status = {0}", ts));
+            }
+
+            ctsForC6.Cancel();
+            try
+            {
+                c6.Wait();
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Expected Wait() to throw after cancellation of Task<int>->Task."));
+            }
+            catch { }
+            ts = c6.Status;
+            if (ts != TaskStatus.Canceled)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Direct cancellation of returned Task<int>->Task did not work -- status = {0}", ts));
+            }
+
+            Debug.WriteLine("RunUnwrapTests: Waiting for container... if we deadlock, cancellations are not being cleaned up properly.");
+            container.Wait();
+
+            taskRoot.Start();
+            futureRoot.Start();
+
+            try
+            {
+                taskRoot.Wait();
+                futureRoot.Wait();
+            }
+            catch (Exception e)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Exception thrown when root tasks were started and waited upon: {0}", e));
+            }
+
+            if (c1val != 0)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Cancellation of Task->Task<int> failed to stop internal continuation"));
+            }
+
+            if (c2val != 0)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Cancellation of Task<int>->Task<int> failed to stop internal continuation"));
+            }
+
+            if (c5val != 0)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Cancellation of Task->Task failed to stop internal continuation"));
+            }
+
+            if (c6val != 0)
+            {
+                Assert.True(false, string.Format("RunUnwrapTests: > FAILED.  Cancellation of Task<int>->Task failed to stop internal continuation"));
+            }
+        }
+
+        // Test that exceptions are properly wrapped when thrown in various scenarios.
+        // Make sure that "indirect" logic does not add superfluous exception wrapping.
+        [Fact]
+        public static void RunExceptionWrappingTest()
+        {
+            Action throwException = delegate { throw new InvalidOperationException(); };
+
+            //
+            //
+            // Test Monadic ContinueWith()
+            //
+            //
+            Action<Task, string> mcwExceptionChecker = delegate (Task mcwTask, string scenario)
+            {
+                try
+                {
+                    mcwTask.Wait();
+                    Assert.True(false, string.Format("RunExceptionWrappingTest:    > FAILED.  Wait-on-continuation did not throw for {0}", scenario));
+                }
+                catch (Exception e)
+                {
+                    int levels = NestedLevels(e);
+                    if (levels != 2)
+                    {
+                        Assert.True(false, string.Format("RunExceptionWrappingTest:    > FAILED.  Exception had {0} levels instead of 2 for {1}.", levels, scenario));
+                    }
+                }
+            };
+
+            // Test mcw off of Task
+            Task t = Task.Factory.StartNew(delegate { });
+
+            // Throw in the returned future
+            Task<int> mcw1 = t.ContinueWith(delegate (Task antecedent)
+            {
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    throw new InvalidOperationException();
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw1, "Task antecedent, throw in ContinuationFunction");
+
+            // Throw in the continuationFunction
+            Task<int> mcw2 = t.ContinueWith(delegate (Task antecedent)
+            {
+                throwException();
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    return 0;
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw2, "Task antecedent, throw in returned Future");
+
+            // Test mcw off of future
+            Task<int> f = Task<int>.Factory.StartNew(delegate { return 0; });
+
+            // Throw in the returned future
+            mcw1 = f.ContinueWith(delegate (Task<int> antecedent)
+            {
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    throw new InvalidOperationException();
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw1, "Future antecedent, throw in ContinuationFunction");
+
+            // Throw in the continuationFunction
+            mcw2 = f.ContinueWith(delegate (Task<int> antecedent)
+            {
+                throwException();
+                Task<int> inner = Task<int>.Factory.StartNew(delegate
+                {
+                    return 0;
+                });
+
+                return inner;
+            }).Unwrap();
+
+            mcwExceptionChecker(mcw2, "Future antecedent, throw in returned Future");
         }
 
         /// <summary>Gets an enumerable of already completed non-generic tasks.</summary>
