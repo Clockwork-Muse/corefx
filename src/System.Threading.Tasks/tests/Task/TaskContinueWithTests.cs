@@ -222,6 +222,91 @@ namespace System.Threading.Tasks.Tests
             Assert.Equal(expected, seen);
         }
 
+        [Fact]
+        public static void Task_ContinueWith_Task_Completes()
+        {
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, new CancellationTokenSource().Token));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, TaskContinuationOptions.None));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, TaskScheduler.Default));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object()));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), TaskContinuationOptions.None));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), TaskScheduler.Default));
+            ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Task_ContinueWith_Future_Completes()
+        {
+            // Helper tester method returns continuation, to be able to validate result
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; })).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, new CancellationTokenSource().Token)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, TaskContinuationOptions.None)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, TaskScheduler.Default)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default)).Result);
+
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object())).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), new CancellationTokenSource().Token)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), TaskContinuationOptions.None)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), TaskScheduler.Default)).Result);
+            Assert.True(ContinueWith_Completes(new Task(() => { }), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default)).Result);
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Task_Completes()
+        {
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, new CancellationTokenSource().Token));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, TaskContinuationOptions.None));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, TaskScheduler.Default));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object()));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), new CancellationTokenSource().Token));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), TaskContinuationOptions.None));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), TaskScheduler.Default));
+            ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default));
+        }
+
+        [Fact]
+        public static void Future_ContinueWith_Future_Completes()
+        {
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; })).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, new CancellationTokenSource().Token)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, TaskContinuationOptions.None)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, TaskScheduler.Default)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith(_ => { flag.Trip(); return true; }, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default)).Result);
+
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object())).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), new CancellationTokenSource().Token)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), TaskContinuationOptions.None)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), TaskScheduler.Default)).Result);
+            Assert.True(ContinueWith_Completes(new Task<bool>(() => true), (task, flag) => task.ContinueWith((t, o) => { flag.Trip(); return true; }, new object(), new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default)).Result);
+        }
+
+        private static U ContinueWith_Completes<T, U>(T task, Func<T, Flag, U> cont) where T : Task where U : Task
+        {
+            Flag flag = new Flag();
+
+            U continuation = cont(task, flag);
+
+            // Created not-complete
+            Assert.False(task.IsCompleted);
+            Assert.False(continuation.IsCompleted);
+
+            // Start the initial task; continuation will auto-fire and complete.
+            task.Start();
+
+            Assert.True(SpinWait.SpinUntil(() => continuation.IsCompleted, MaxSafeWait));
+            Functions.AssertComplete(continuation);
+            Functions.AssertComplete(task);
+
+            return continuation;
+        }
+
         // Stresses on multiple continuations from a single antecedent
         [Theory]
         // All "leftover" continuations will be immediately scheduled.
