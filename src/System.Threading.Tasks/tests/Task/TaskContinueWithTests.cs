@@ -7,7 +7,7 @@ using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
-    //
+    // TODO: Revisit ContinueWhenAny/ContinueWhenAll and compare tests.
     // ContinueWith tests.
     //
     public static class TaskContinueWithTests
