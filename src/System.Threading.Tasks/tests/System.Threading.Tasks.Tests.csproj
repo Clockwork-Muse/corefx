@@ -43,11 +43,11 @@
     <Compile Include="Task\TaskPropertiesTests.cs" />
     <Compile Include="Task\TaskCreateTests.cs" />
     <Compile Include="Task\TaskWaitAllAnyTests.cs" />
-    <Compile Include="Task\TaskContinueWithTests.cs" />
-    <Compile Include="Task\TaskContinueWith_ContFuncAndActionWithArgsTests.cs" />
-    <Compile Include="Task\TaskContinueWith_ContFuncAndActionTests.cs" />
-    <Compile Include="TaskFactory\TaskContinueWhenAnyTests.cs" />
-    <Compile Include="TaskFactory\TaskContinueWhenAllTests.cs" />
+    <Compile Include="Continuation\TaskContinueWithTests.cs" />
+    <Compile Include="Continuation\TaskContinueWith_ContFuncAndActionWithArgsTests.cs" />
+    <Compile Include="Continuation\TaskContinueWith_ContFuncAndActionTests.cs" />
+    <Compile Include="Continuation\TaskContinueWhenAnyTests.cs" />
+    <Compile Include="Continuation\TaskContinueWhenAllTests.cs" />
     <Compile Include="Task\TaskWaitTests.cs" />
     <Compile Include="TaskCompletionSourceTests.cs" />
     <Compile Include="Task\TaskAPMTests.cs" />
