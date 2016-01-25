@@ -8,7 +8,7 @@ namespace System.Threading.Tasks.Tests
     public static class Continuation_AsyncState
     {
         [Fact]
-        public static void AsyncState_Null()
+        public static void ContinueWith_AsyncState_Null()
         {
             Assert.Null(new Task(() => { }).ContinueWith(_ => { }).AsyncState);
             Assert.Null(new Task(() => { }).ContinueWith(_ => { }, new CancellationTokenSource().Token).AsyncState);
