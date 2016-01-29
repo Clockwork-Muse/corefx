@@ -5,7 +5,7 @@ using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
-    public static class Continuation_AsyncState
+    public static class Continuation_AsyncStateTests
     {
         [Fact]
         public static void ContinueWith_AsyncState_Null()
@@ -33,6 +33,13 @@ namespace System.Threading.Tasks.Tests
             Assert.Null(new Task<int>(() => 0).ContinueWith(_ => 0, TaskContinuationOptions.None).AsyncState);
             Assert.Null(new Task<int>(() => 0).ContinueWith(_ => 0, TaskScheduler.Default).AsyncState);
             Assert.Null(new Task<int>(() => 0).ContinueWith(_ => 0, new CancellationTokenSource().Token, TaskContinuationOptions.None, TaskScheduler.Default).AsyncState);
+        }
+
+        [Fact]
+        public static void ContinueWhenAll_AsyncState_N()
+        {
+            Action<Task[]> a = _ => { };
+            Assert.Same(a, new TaskFactory().ContinueWhenAll(new[] { new Task(() => { }) }, a).AsyncState);
         }
 
         [Fact]
