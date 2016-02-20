@@ -108,7 +108,7 @@ namespace System.Threading.Tasks.Tests
                     innerTcs.SetResult(true);
                     break;
                 case TaskStatus.Faulted:
-                    innerTcs.SetException(new InvalidProgramException());
+                    innerTcs.SetException(new DeliberateTestException());
                     break;
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
@@ -141,7 +141,7 @@ namespace System.Threading.Tasks.Tests
                     innerTcs.SetResult(42);
                     break;
                 case TaskStatus.Faulted:
-                    innerTcs.SetException(new InvalidProgramException());
+                    innerTcs.SetException(new DeliberateTestException());
                     break;
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
@@ -186,7 +186,7 @@ namespace System.Threading.Tasks.Tests
                     innerTcs.SetResult(true);
                     break;
                 case TaskStatus.Faulted:
-                    innerTcs.SetException(new InvalidOperationException());
+                    innerTcs.SetException(new DeliberateTestException());
                     break;
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
@@ -237,7 +237,7 @@ namespace System.Threading.Tasks.Tests
                     innerTcs.SetResult(42);
                     break;
                 case TaskStatus.Faulted:
-                    innerTcs.SetException(new InvalidOperationException());
+                    innerTcs.SetException(new DeliberateTestException());
                     break;
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
@@ -284,7 +284,7 @@ namespace System.Threading.Tasks.Tests
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
                 case TaskStatus.Faulted:
-                    outerTcs.SetException(new InvalidCastException());
+                    outerTcs.SetException(new DeliberateTestException());
                     break;
             }
 
@@ -335,7 +335,7 @@ namespace System.Threading.Tasks.Tests
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
                 case TaskStatus.Faulted:
-                    outerTcs.SetException(new InvalidCastException());
+                    outerTcs.SetException(new DeliberateTestException());
                     break;
             }
 
@@ -411,17 +411,17 @@ namespace System.Threading.Tasks.Tests
         [Fact]
         public void NonGeneric_DefaultSchedulerUsed()
         {
-            var scheduler = new CountingScheduler();
+            var scheduler = new QUWITaskScheduler();
             Task.Factory.StartNew(() =>
             {
-                int initialCallCount = scheduler.QueueTaskCalls;
+                int initialCallCount = scheduler.QueueTaskCount;
 
                 Task<Task> outer = Task.Factory.StartNew(() => Task.Run(() => { }),
                     CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
                 Task unwrappedInner = outer.Unwrap();
                 unwrappedInner.Wait();
 
-                Assert.Equal(initialCallCount, scheduler.QueueTaskCalls);
+                Assert.Equal(initialCallCount, scheduler.QueueTaskCount);
             }, CancellationToken.None, TaskCreationOptions.None, scheduler).GetAwaiter().GetResult();
         }
 
@@ -431,17 +431,17 @@ namespace System.Threading.Tasks.Tests
         [Fact]
         public void Generic_DefaultSchedulerUsed()
         {
-            var scheduler = new CountingScheduler();
+            var scheduler = new QUWITaskScheduler();
             Task.Factory.StartNew(() =>
             {
-                int initialCallCount = scheduler.QueueTaskCalls;
+                int initialCallCount = scheduler.QueueTaskCount;
 
                 Task<Task<int>> outer = Task.Factory.StartNew(() => Task.Run(() => 42),
                     CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
                 Task<int> unwrappedInner = outer.Unwrap();
                 unwrappedInner.Wait();
 
-                Assert.Equal(initialCallCount, scheduler.QueueTaskCalls);
+                Assert.Equal(initialCallCount, scheduler.QueueTaskCount);
             }, CancellationToken.None, TaskCreationOptions.None, scheduler).GetAwaiter().GetResult();
         }
 
@@ -545,31 +545,8 @@ namespace System.Threading.Tasks.Tests
         private static CancellationToken GetCanceledTaskToken(Task task)
         {
             Assert.True(task.IsCanceled);
-            try
-            {
-                task.GetAwaiter().GetResult();
-                Assert.False(true, "Canceled task should have thrown from GetResult");
-                return default(CancellationToken);
-            }
-            catch (OperationCanceledException oce)
-            {
-                return oce.CancellationToken;
-            }
-        }
-
-        private sealed class CountingScheduler : TaskScheduler
-        {
-            public int QueueTaskCalls = 0;
-
-            protected override void QueueTask(Task task)
-            {
-                Interlocked.Increment(ref QueueTaskCalls);
-                Task.Run(() => TryExecuteTask(task));
-            }
-
-            protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) { return false; }
-
-            protected override IEnumerable<Task> GetScheduledTasks() { return null; }
+            TaskCanceledException exc = Assert.Throws<TaskCanceledException>(() => task.GetAwaiter().GetResult());
+            return exc.CancellationToken;
         }
 
     }
