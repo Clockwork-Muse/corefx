@@ -45,6 +45,7 @@
     <Compile Include="TaskFactory\TaskFactoryTests.cs" />
     <!-- TaskScheduler -->
     <Compile Include="TaskScheduler\TaskSchedulerTests.cs" />
+    <Compile Include="TaskScheduler\TaskSchedulerExceptionTests.cs" />
     <!-- System.Runtime.CompilerServices -->
     <Compile Include="System.Runtime.CompilerServices\TaskAwaiterTests.cs" />
     <Compile Include="System.Runtime.CompilerServices\YieldAwaitableTests.cs" />
