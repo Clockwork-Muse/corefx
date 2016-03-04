@@ -11,6 +11,7 @@
     <Compile Include="$(CommonTestPath)\System\DeliberateTestException.cs">
       <Link>Common\System\DeliberateTestException.cs</Link>
     </Compile>
+    <Compile Include="Task\TaskFromAsyncTest2.cs" />
     <Compile Include="XunitAssemblyAttributes.cs" />
     <Compile Include="UnwrapTests.cs" />
     <Compile Include="AggregateExceptionTests.cs" />
