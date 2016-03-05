@@ -43,6 +43,7 @@
     <!-- TaskFactory -->
     <Compile Include="TaskFactory\TaskFactory_FromAsyncTests.cs" />
     <Compile Include="TaskFactory\TaskFactoryTests.cs" />
+    <Compile Include="TaskFactory\TaskFactory_CreateTests.cs" />
     <!-- TaskScheduler -->
     <Compile Include="TaskScheduler\TaskSchedulerTests.cs" />
     <Compile Include="TaskScheduler\TaskSchedulerExceptionTests.cs" />
