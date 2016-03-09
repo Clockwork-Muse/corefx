@@ -87,6 +87,30 @@ namespace System.Threading.Tasks.Tests
             Assert.Equal(TaskScheduler.Default, captured);
         }
 
+        [Theory]
+        [MemberData(nameof(TaskFactory_Task_Scheduler_Data))]
+        public static void TaskFactory_Task_Scheduler_NonDefault(string label, Func<TaskFactory, Action, Task> start)
+        {
+            CapturingTaskScheduler capturer = new CapturingTaskScheduler();
+            TaskFactory factory = new TaskFactory(capturer);
+
+            Task started = start(factory, () => { /* do nothing, scheduler will capture */ });
+            Spin.UntilOrTimeout(() => started.IsCompleted);
+            Assert.Equal(started, capturer.AllCapturedTasks.Single());
+        }
+
+        [Theory]
+        [MemberData(nameof(TaskFactory_Future_Scheduler_Data))]
+        public static void TaskFactory_Future_Scheduler_NonDefault(string label, Func<TaskFactory<object>, Action, Task> start)
+        {
+            CapturingTaskScheduler capturer = new CapturingTaskScheduler();
+            TaskFactory<object> factory = new TaskFactory<object>(capturer);
+
+            Task started = start(factory, () => { /* do nothing, scheduler will capture */ });
+            Spin.UntilOrTimeout(() => started.IsCompleted);
+            Assert.Equal(started, capturer.AllCapturedTasks.Single());
+        }
+
         [Fact]
         public static void TaskFactory_StartNew_ArgumentNull()
         {
