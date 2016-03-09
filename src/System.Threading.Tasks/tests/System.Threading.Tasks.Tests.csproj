@@ -11,6 +11,7 @@
     <Compile Include="$(CommonTestPath)\System\DeliberateTestException.cs">
       <Link>Common\System\DeliberateTestException.cs</Link>
     </Compile>
+    <Compile Include="Helpers\Spin.cs" />
     <Compile Include="Task\TaskFromAsyncTest2.cs" />
     <Compile Include="XunitAssemblyAttributes.cs" />
     <Compile Include="UnwrapTests.cs" />
@@ -44,6 +45,7 @@
     <Compile Include="TaskFactory\TaskFactory_FromAsyncTests.cs" />
     <Compile Include="TaskFactory\TaskFactoryTests.cs" />
     <Compile Include="TaskFactory\TaskFactory_CreateTests.cs" />
+    <Compile Include="TaskFactory\TaskFactory_StartNewTests.cs" />
     <!-- TaskScheduler -->
     <Compile Include="TaskScheduler\TaskSchedulerTests.cs" />
     <Compile Include="TaskScheduler\TaskSchedulerExceptionTests.cs" />

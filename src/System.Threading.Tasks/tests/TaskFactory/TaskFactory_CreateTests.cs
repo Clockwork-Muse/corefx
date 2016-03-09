@@ -10,7 +10,7 @@ namespace System.Threading.Tasks.Tests
 {
     public class TaskFactory_CreateTests
     {
-        private static readonly TaskCreationOptions[] CreationOptions = (TaskCreationOptions[])Enum.GetValues(typeof(TaskCreationOptions));
+        internal static readonly TaskCreationOptions[] CreationOptions = (TaskCreationOptions[])Enum.GetValues(typeof(TaskCreationOptions));
 
         // Valid continuation options for constructor parameters.  Some methods throw if certain options were previously selected.
         private static readonly TaskContinuationOptions[] ContinuationOptions =
@@ -320,26 +320,22 @@ namespace System.Threading.Tasks.Tests
             Assert.Throws<ArgumentOutOfRangeException>("continuationOptions", () => new TaskFactory<int>(CancellationToken.None, TaskCreationOptions.None, option, TaskScheduler.Default));
         }
 
+        // This class is solely to provide a non-default task scheduler, and isn't meant to be used.
         private class NonDefaultScheduler : TaskScheduler
         {
             protected override IEnumerable<Task> GetScheduledTasks()
             {
-                return Enumerable.Empty<Task>();
+                throw new ShouldNotBeInvokedException();
             }
 
             protected override void QueueTask(Task task)
             {
-                Task.Run(() => TryExecuteTask(task));
+                throw new ShouldNotBeInvokedException();
             }
 
             protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
             {
-                if (taskWasPreviouslyQueued)
-                {
-                    return false;
-                }
-
-                return TryExecuteTask(task);
+                throw new ShouldNotBeInvokedException();
             }
         }
     }
