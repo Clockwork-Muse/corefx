@@ -107,9 +107,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(true);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new InvalidProgramException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
                     break;
@@ -140,9 +142,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(42);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new InvalidProgramException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.SetCanceled();
                     break;
@@ -185,9 +189,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(true);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new InvalidOperationException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
@@ -236,9 +242,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     innerTcs.SetResult(42);
                     break;
+
                 case TaskStatus.Faulted:
                     innerTcs.SetException(new InvalidOperationException());
                     break;
+
                 case TaskStatus.Canceled:
                     innerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
@@ -280,9 +288,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     outerTcs.SetResult(null);
                     break;
+
                 case TaskStatus.Canceled:
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
+
                 case TaskStatus.Faulted:
                     outerTcs.SetException(new InvalidCastException());
                     break;
@@ -298,6 +308,7 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
+
                 default:
                     AssertTask.Equal(outer, unwrappedInner);
                     break;
@@ -331,9 +342,11 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     outerTcs.SetResult(null); // cancellation
                     break;
+
                 case TaskStatus.Canceled:
                     outerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
+
                 case TaskStatus.Faulted:
                     outerTcs.SetException(new InvalidCastException());
                     break;
@@ -349,6 +362,7 @@ namespace System.Threading.Tasks.Tests
                 case TaskStatus.RanToCompletion:
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
+
                 default:
                     AssertTask.Equal(outer, unwrappedInner);
                     break;
@@ -520,10 +534,15 @@ namespace System.Threading.Tasks.Tests
                 Task.Run(() => TryExecuteTask(task));
             }
 
-            protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) { return false; }
+            protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+            {
+                return false;
+            }
 
-            protected override IEnumerable<Task> GetScheduledTasks() { return null; }
+            protected override IEnumerable<Task> GetScheduledTasks()
+            {
+                return null;
+            }
         }
-
     }
 }

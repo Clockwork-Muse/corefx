@@ -10,6 +10,131 @@ namespace System.Threading.Tasks.Tests
 {
     public static class TaskFactory_StartNewTests
     {
+        // Expected result from tasks that return values.
+        private static readonly object ExpectedResult = new object();
+
+        /// <summary>
+        /// Get a TaskFactory constructed with all relevant options set.
+        /// </summary>
+        /// Returned data is in the following format:
+        ///  1. The TaskFactory
+        ///  2. The CancellationTokenSource, if one was used to create the CancellationToken
+        ///
+        /// The returned TaskFactorys have no TaskContinuationOptions specified.
+        /// Note that it's not possible to observe the state of the token from the started task if the token is never canceled.
+        /// <returns>TaskFactory and CancellationTokenSource, if used.</returns>
+        public static IEnumerable<object[]> TaskFactory_Task_Data()
+        {
+            foreach (TaskCreationOptions create in TaskFactory_CreateTests.CreationOptions)
+            {
+                foreach (object[] tokenAndSource in TaskFactory_CreateTests.CancellationToken_Data())
+                {
+                    CancellationToken token = (CancellationToken)tokenAndSource[0];
+                    CancellationTokenSource source = (CancellationTokenSource)tokenAndSource[1];
+
+                    yield return new object[] { new TaskFactory(token, create, TaskContinuationOptions.None, new CapturingTaskScheduler()), source };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get a TaskFactory Future constructed with all relevant options set.
+        /// </summary>
+        /// Returned data is in the following format:
+        ///  1. The TaskFactory Future
+        ///  2. The CancellationTokenSource, if one was used to create the CancellationToken
+        ///
+        /// The returned TaskFactorys have no TaskContinuationOptions specified.
+        /// Note that it's not possible to observe the state of the token from the started task if the token is never canceled.
+        /// <returns>TaskFactory and CancellationTokenSource, if used.</returns>
+        public static IEnumerable<object[]> TaskFactory_Future_Data()
+        {
+            foreach (TaskCreationOptions create in TaskFactory_CreateTests.CreationOptions)
+            {
+                foreach (object[] tokenAndSource in TaskFactory_CreateTests.CancellationToken_Data())
+                {
+                    CancellationToken token = (CancellationToken)tokenAndSource[0];
+                    CancellationTokenSource source = (CancellationTokenSource)tokenAndSource[1];
+
+                    yield return new object[] { new TaskFactory<object>(token, create, TaskContinuationOptions.None, new CapturingTaskScheduler()), source };
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TaskFactory_Task_Data))]
+        public static void TaskFactory_Task_StartNew_Task(TaskFactory factory, CancellationTokenSource source)
+        {
+            if (factory.CancellationToken.IsCancellationRequested)
+            {
+                Task task = factory.StartNew(() => { throw new ShouldNotBeInvokedException(); });
+
+                Assert.NotNull(task);
+                Spin.UntilOrTimeout(() => task.IsCompleted);
+                AssertTask.Canceled(task, factory.CancellationToken);
+            }
+            else
+            {
+                TaskScheduler captured = null;
+                Task task = factory.StartNew(() => { captured = TaskScheduler.Current; });
+
+                Assert.NotNull(task);
+                Assert.Equal(factory.CreationOptions, task.CreationOptions);
+                Spin.UntilOrTimeout(() => captured != null);
+                Assert.Equal(factory.ExpectedScheduler(), captured);
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TaskFactory_Task_Data))]
+        public static void TaskFactory_Task_StartNew_Future(TaskFactory factory, CancellationTokenSource source)
+        {
+            if (factory.CancellationToken.IsCancellationRequested)
+            {
+                Task task = factory.StartNew<object>(() => { throw new ShouldNotBeInvokedException(); });
+
+                Assert.NotNull(task);
+                Spin.UntilOrTimeout(() => task.IsCompleted);
+                AssertTask.Canceled(task, factory.CancellationToken);
+            }
+            else
+            {
+                TaskScheduler captured = null;
+                Task<object> task = factory.StartNew(() => { captured = TaskScheduler.Current; return ExpectedResult; });
+
+                Assert.NotNull(task);
+                Assert.Equal(factory.CreationOptions, task.CreationOptions);
+                Spin.UntilOrTimeout(() => captured != null);
+                Assert.Equal(factory.ExpectedScheduler(), captured);
+                Assert.Equal(ExpectedResult, task.Result);
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TaskFactory_Task_Data))]
+        public static void TaskFactory_Future_StartNew_Task(TaskFactory<object> factory, CancellationTokenSource source)
+        {
+            if (factory.CancellationToken.IsCancellationRequested)
+            {
+                Task task = factory.StartNew(() => { throw new ShouldNotBeInvokedException(); });
+                Assert.NotNull(task);
+
+                Spin.UntilOrTimeout(() => task.IsCompleted);
+                AssertTask.Canceled(task, factory.CancellationToken);
+            }
+            else
+            {
+                TaskScheduler captured = null;
+                Task<object> task = factory.StartNew(() => { captured = TaskScheduler.Current; return ExpectedResult; });
+
+                Assert.NotNull(task);
+                Assert.Equal(factory.CreationOptions, task.CreationOptions);
+                Spin.UntilOrTimeout(() => captured != null);
+                Assert.Equal(factory.ExpectedScheduler(), captured);
+                Assert.Equal(ExpectedResult, task.Result);
+            }
+        }
+
         /// <summary>
         /// Get all StartNew/StartNew-Future calls not taking a scheduler.
         /// </summary>

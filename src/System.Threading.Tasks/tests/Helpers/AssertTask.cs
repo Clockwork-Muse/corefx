@@ -12,6 +12,64 @@ namespace System.Threading.Tasks.Tests
     internal static class AssertTask
     {
         /// <summary>
+        /// Verify that the given task is complete
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        internal static void Completed(Task task)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.False(task.IsCanceled);
+            Assert.False(task.IsFaulted);
+            Assert.Null(task.Exception);
+            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+        }
+
+        /// <summary>
+        /// Verify that the given task is complete
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        /// <param name="result">The expected result of the task</param>
+        internal static void Completed<T>(Task<T> task, T result)
+        {
+            Completed(task);
+            Assert.Equal(result, task.Result);
+        }
+
+        /// <summary>
+        /// Check that the given task is canceled.
+        /// </summary>
+        /// <param name="task">The task to check</param>
+        /// <param name="token">The token the task was canceled with</param>
+        internal static void Canceled(Task task, CancellationToken token)
+        {
+            Assert.True(task.IsCompleted);
+            Assert.True(task.IsCanceled);
+            Assert.False(task.IsFaulted);
+            Assert.Null(task.Exception);
+            Assert.Equal(TaskStatus.Canceled, task.Status);
+
+            AggregateException ae = Assert.Throws<AggregateException>(() => task.Wait());
+            TaskCanceledException tce = Assert.IsType<TaskCanceledException>(ae.InnerException);
+            Assert.Equal(token, tce.CancellationToken);
+        }
+
+        /// <summary>
+        /// Check that the given task is faulted.
+        /// </summary>
+        /// <typeparam name="TException">The type of the exception</typeparam>
+        /// <param name="task">The task to check</param>
+        internal static void Faulted<TException>(Task task) where TException : Exception
+        {
+            Assert.True(task.IsCompleted);
+            Assert.False(task.IsCanceled);
+            Assert.True(task.IsFaulted);
+            Assert.NotNull(task.Exception);
+            Assert.Equal(TaskStatus.Faulted, task.Status);
+
+            AssertThrows.Wrapped<TException>(() => task.Wait());
+        }
+
+        /// <summary>
         /// Asserts that two non-generic tasks are logically equal with regards to completion status.
         /// </summary>
         /// <param name="expected">The expected task.</param>

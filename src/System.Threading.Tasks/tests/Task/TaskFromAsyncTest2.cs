@@ -8,14 +8,9 @@
 //
 // <OWNER>susanlwo</OWNER>
 //
-// Test class using UnitTestDriver that ensures that the FromAsync overload methods are tested 
+// Test class using UnitTestDriver that ensures that the FromAsync overload methods are tested
 
 using Xunit;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
-using System.Diagnostics;
 
 namespace System.Threading.Tasks.Tests.FromAsync
 {
@@ -134,6 +129,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest23()
         {
@@ -158,7 +154,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             test.RealRun();
         }
 
-
         [Fact]
         public static void TaskFromAsyncTest30()
         {
@@ -166,6 +161,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest33()
         {
@@ -173,6 +169,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest34()
         {
@@ -180,6 +177,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest35()
         {
@@ -187,6 +185,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest38()
         {
@@ -210,6 +209,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest43()
         {
@@ -234,7 +234,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             test.RealRun();
         }
 
-
         [Fact]
         public static void TaskFromAsyncTest47()
         {
@@ -242,6 +241,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest48()
         {
@@ -265,6 +265,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest55()
         {
@@ -280,7 +281,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
-
 
         [Fact]
         public static void TaskFromAsyncTest59()
@@ -306,7 +306,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             test.RealRun();
         }
 
-
         [Fact]
         public static void TaskFromAsyncTest64()
         {
@@ -330,7 +329,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
-
 
         [Fact]
         public static void TaskFromAsyncTest69()
@@ -364,7 +362,6 @@ namespace System.Threading.Tasks.Tests.FromAsync
             test.RealRun();
         }
 
-
         [Fact]
         public static void TaskFromAsyncTest74()
         {
@@ -372,6 +369,7 @@ namespace System.Threading.Tasks.Tests.FromAsync
             TaskFromAsyncTest test = new TaskFromAsyncTest(parameters);
             test.RealRun();
         }
+
         [Fact]
         public static void TaskFromAsyncTest75()
         {
@@ -389,6 +387,5 @@ namespace System.Threading.Tasks.Tests.FromAsync
         }
 
         #endregion
-
     }
 }
