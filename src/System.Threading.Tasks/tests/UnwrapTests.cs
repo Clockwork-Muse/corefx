@@ -25,13 +25,13 @@ namespace System.Threading.Tasks.Tests
         /// <param name="inner">Will be run with a RanToCompletion, Faulted, and Canceled task.</param>
         [Theory]
         [MemberData(nameof(CompletedNonGenericTasks))]
-        public void NonGeneric_Completed_Completed(Task inner) 
+        public void NonGeneric_Completed_Completed(Task inner)
         {
             Task<Task> outer = Task.FromResult(inner);
             Task unwrappedInner = outer.Unwrap();
             Assert.True(unwrappedInner.IsCompleted);
             Assert.Same(inner, unwrappedInner);
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace System.Threading.Tasks.Tests
             Task<string> unwrappedInner = outer.Unwrap();
             Assert.True(unwrappedInner.IsCompleted);
             Assert.Same(inner, unwrappedInner);
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace System.Threading.Tasks.Tests
         /// <param name="inner">The inner task.</param>
         [Theory]
         [MemberData(nameof(CompletedNonGenericTasks))]
-        public void NonGeneric_NotCompleted_Completed(Task inner) 
+        public void NonGeneric_NotCompleted_Completed(Task inner)
         {
             var outerTcs = new TaskCompletionSource<Task>();
             Task<Task> outer = outerTcs.Task;
@@ -64,7 +64,7 @@ namespace System.Threading.Tasks.Tests
             Assert.False(unwrappedInner.IsCompleted);
 
             outerTcs.SetResult(inner);
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace System.Threading.Tasks.Tests
             Assert.False(unwrappedInner.IsCompleted);
 
             outerTcs.SetResult(inner);
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace System.Threading.Tasks.Tests
         [InlineData(TaskStatus.RanToCompletion)]
         [InlineData(TaskStatus.Faulted)]
         [InlineData(TaskStatus.Canceled)]
-        public void NonGeneric_Completed_NotCompleted(TaskStatus innerStatus) 
+        public void NonGeneric_Completed_NotCompleted(TaskStatus innerStatus)
         {
             var innerTcs = new TaskCompletionSource<bool>();
             Task inner = innerTcs.Task;
@@ -115,7 +115,7 @@ namespace System.Threading.Tasks.Tests
                     break;
             }
 
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace System.Threading.Tasks.Tests
                     break;
             }
 
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace System.Threading.Tasks.Tests
         [InlineData(false, TaskStatus.RanToCompletion)]
         [InlineData(false, TaskStatus.Canceled)]
         [InlineData(false, TaskStatus.Faulted)]
-        public void NonGeneric_NotCompleted_NotCompleted(bool outerCompletesFirst, TaskStatus innerStatus) 
+        public void NonGeneric_NotCompleted_NotCompleted(bool outerCompletesFirst, TaskStatus innerStatus)
         {
             var innerTcs = new TaskCompletionSource<bool>();
             Task inner = innerTcs.Task;
@@ -192,14 +192,14 @@ namespace System.Threading.Tasks.Tests
                     innerTcs.TrySetCanceled(CreateCanceledToken());
                     break;
             }
-            
+
             if (!outerCompletesFirst)
             {
                 Assert.False(unwrappedInner.IsCompleted);
                 outerTcs.SetResult(inner);
             }
 
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace System.Threading.Tasks.Tests
                 outerTcs.SetResult(inner);
             }
 
-            AssertTasksAreEqual(inner, unwrappedInner);
+            AssertTask.Equal(inner, unwrappedInner);
         }
 
         /// <summary>
@@ -299,7 +299,7 @@ namespace System.Threading.Tasks.Tests
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
                 default:
-                    AssertTasksAreEqual(outer, unwrappedInner);
+                    AssertTask.Equal(outer, unwrappedInner);
                     break;
             }
         }
@@ -350,7 +350,7 @@ namespace System.Threading.Tasks.Tests
                     Assert.True(unwrappedInner.IsCanceled);
                     break;
                 default:
-                    AssertTasksAreEqual(outer, unwrappedInner);
+                    AssertTask.Equal(outer, unwrappedInner);
                     break;
             }
         }
@@ -373,7 +373,7 @@ namespace System.Threading.Tasks.Tests
                 Assert.Equal(TaskCreationOptions.AttachedToParent, unwrappedInner.CreationOptions);
 
                 outerTcs.SetResult(inner);
-                AssertTasksAreEqual(inner, unwrappedInner);
+                AssertTask.Equal(inner, unwrappedInner);
             }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
             WaitNoThrow(parent);
             Assert.Equal(TaskStatus.Faulted, parent.Status);
@@ -398,7 +398,7 @@ namespace System.Threading.Tasks.Tests
                 Assert.Equal(TaskCreationOptions.AttachedToParent, unwrappedInner.CreationOptions);
 
                 outerTcs.SetResult(inner);
-                AssertTasksAreEqual(inner, unwrappedInner);
+                AssertTask.Equal(inner, unwrappedInner);
             }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
             WaitNoThrow(parent);
             Assert.Equal(TaskStatus.Faulted, parent.Status);
@@ -493,37 +493,6 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
-        /// <summary>Asserts that two non-generic tasks are logically equal with regards to completion status.</summary>
-        private static void AssertTasksAreEqual(Task expected, Task actual)
-        {
-            Assert.NotNull(actual);
-            WaitNoThrow(actual);
-
-            Assert.Equal(expected.Status, actual.Status);
-            switch (expected.Status)
-            {
-                case TaskStatus.Faulted:
-                    Assert.Equal((IEnumerable<Exception>)expected.Exception.InnerExceptions, actual.Exception.InnerExceptions);
-                    break;
-                case TaskStatus.Canceled:
-                    Assert.Equal(GetCanceledTaskToken(expected), GetCanceledTaskToken(actual));
-                    break;
-            }
-        }
-
-        /// <summary>Asserts that two non-generic tasks are logically equal with regards to completion status.</summary>
-        private static void AssertTasksAreEqual<T>(Task<T> expected, Task<T> actual)
-        {
-            AssertTasksAreEqual((Task)expected, actual);
-            if (expected.Status == TaskStatus.RanToCompletion)
-            {
-                if (typeof(T).GetTypeInfo().IsValueType)
-                    Assert.Equal(expected.Result, actual.Result);
-                else
-                    Assert.Same(expected.Result, actual.Result);
-            }
-        }
-
         /// <summary>Creates an already canceled token.</summary>
         private static CancellationToken CreateCanceledToken()
         {
@@ -539,22 +508,6 @@ namespace System.Threading.Tasks.Tests
         private static void WaitNoThrow(Task task)
         {
             ((IAsyncResult)task).AsyncWaitHandle.WaitOne();
-        }
-
-        /// <summary>Extracts the CancellationToken associated with a task.</summary>
-        private static CancellationToken GetCanceledTaskToken(Task task)
-        {
-            Assert.True(task.IsCanceled);
-            try
-            {
-                task.GetAwaiter().GetResult();
-                Assert.False(true, "Canceled task should have thrown from GetResult");
-                return default(CancellationToken);
-            }
-            catch (OperationCanceledException oce)
-            {
-                return oce.CancellationToken;
-            }
         }
 
         private sealed class CountingScheduler : TaskScheduler

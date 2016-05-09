@@ -11,6 +11,7 @@
     <Compile Include="$(CommonTestPath)\System\DeliberateTestException.cs">
       <Link>Common\System\DeliberateTestException.cs</Link>
     </Compile>
+    <Compile Include="Helpers\AssertTask.cs" />
     <Compile Include="Helpers\CapturingTaskScheduler.cs" />
     <Compile Include="Helpers\Spin.cs" />
     <Compile Include="Task\TaskFromAsyncTest2.cs" />
