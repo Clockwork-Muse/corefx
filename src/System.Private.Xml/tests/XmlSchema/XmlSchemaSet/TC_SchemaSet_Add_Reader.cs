@@ -13,11 +13,11 @@ namespace System.Xml.Tests
         [Fact]
         public void NullNamespaceAndNullReader()
         {
-            Assert.ThrowsAny<ArgumentNullException>(() =>
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                sc.Add((string)null, (XmlReader)null);
-            });
+            XmlSchemaSet sc = new XmlSchemaSet();
+            Exception e = Record.Exception(() => sc.Add((string)null, (XmlReader)null));
+
+            Assert.NotNull(e);
+            Assert.IsType<ArgumentNullException>(e);
         }
 
         [Fact]
@@ -45,26 +45,27 @@ namespace System.Xml.Tests
         [Fact]
         public void ValidNamespaceReaderPositionedOnElementButNoXsdSchemaTag()
         {
-            Assert.ThrowsAny<XmlSchemaException>(() =>
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
 
-                while (Reader.Read()) { }
+            while (Reader.Read()) { /* Read until end */ }
 
-                sc.Add("xsdauthor", Reader);
-            });
+            Exception e = Record.Exception(() => sc.Add("xsdauthor", Reader));
+
+            Assert.NotNull(e);
+            Assert.IsType<XmlSchemaException>(e);
         }
 
         [Fact]
         public void NamespaceUnmatchingReaderValid()
         {
-            Assert.ThrowsAny<XmlSchemaException>(() =>
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
-                sc.Add("", Reader);
-            });
+            XmlSchemaSet sc = new XmlSchemaSet();
+            XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
+
+            Exception e = Record.Exception(() => sc.Add("", Reader));
+
+            Assert.NotNull(e);
+            Assert.IsType<XmlSchemaException>(e);
         }
 
         [Fact]
@@ -99,27 +100,30 @@ namespace System.Xml.Tests
         [Fact]
         public void AddingReaderOnXDRSchema()
         {
-            Assert.ThrowsAny<XmlSchemaException>(() =>
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                XmlTextReader Reader1 = new XmlTextReader(TestData._SchemaXdr);
-                sc.Add(null, Reader1);
-            });
+            XmlSchemaSet sc = new XmlSchemaSet();
+            XmlTextReader Reader1 = new XmlTextReader(TestData._SchemaXdr);
+
+            Exception e = Record.Exception(() => sc.Add(null, Reader1));
+
+            Assert.NotNull(e);
+            Assert.IsType<XmlSchemaException>(e);
         }
 
         [Fact]
         public void ValidNamespaceReaderPositionedOnANonElementNode()
         {
-            Assert.ThrowsAny<XmlSchemaException>(() =>
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                XmlTextReader reader = new XmlTextReader(TestData._FileXSD1);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            XmlTextReader reader = new XmlTextReader(TestData._FileXSD1);
 
-                // positions on a non element (annotation) node
-                while (reader.LocalName != "annotation")
-                    reader.Read();
-                sc.Add(null, reader);
-            });
+            // positions on a non element (annotation) node
+            while (reader.LocalName != "annotation")
+            {
+                reader.Read();
+            }
+            Exception e = Record.Exception(() => sc.Add(null, reader));
+
+            Assert.NotNull(e);
+            Assert.IsType<XmlSchemaException>(e);
         }
 
         [Fact]
@@ -238,20 +242,13 @@ namespace System.Xml.Tests
   </xsd:complexType>
 </xsd:schema>";
             XmlSchemaSet s = new XmlSchemaSet();
-            using (XmlReader r = XmlReader.Create(new StringReader(xsd)))
-            {
-                try
-                {
-                    s.Add(null, r);
-                }
-                catch (XmlSchemaException e)
-                {
-                    Assert.False(e.Message.EndsWith(".."));
-                    return;
-                }
-            }
+            XmlReader r = XmlReader.Create(new StringReader(xsd));
 
-            Assert.True(false);
+            Exception e = Record.Exception(() => s.Add(null, r));
+
+            Assert.NotNull(e);
+            Assert.IsType<XmlSchemaException>(e);
+            Assert.False(e.Message.EndsWith(".."));
         }
     }
 }
