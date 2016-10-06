@@ -8,10 +8,10 @@ using Xunit;
 
 namespace System.Xml.Tests
 {
-    public class TC_SchemaSet_Add_Reader : TC_SchemaSetBase
+    public static class TC_SchemaSet_Add_Reader
     {
         [Fact]
-        public void NullNamespaceAndNullReader()
+        public static void NullNamespaceAndNullReader()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             Exception e = Record.Exception(() => sc.Add((string)null, (XmlReader)null));
@@ -21,7 +21,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void NullNamespaceValidReader()
+        public static void NullNamespaceValidReader()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
@@ -32,7 +32,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void ValidNamespaceValidReader()
+        public static void ValidNamespaceValidReader()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
@@ -43,7 +43,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void ValidNamespaceReaderPositionedOnElementButNoXsdSchemaTag()
+        public static void ValidNamespaceReaderPositionedOnElementButNoXsdSchemaTag()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
@@ -57,7 +57,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void NamespaceUnmatchingReaderValid()
+        public static void NamespaceUnmatchingReaderValid()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
@@ -69,7 +69,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void Adding2ReadersOnSchemaWithNoNamespacesAddWithDiffNamespace()
+        public static void Adding2ReadersOnSchemaWithNoNamespacesAddWithDiffNamespace()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader1 = new XmlTextReader(TestData._XsdNoNs);
@@ -83,7 +83,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void AddingSameReaderForNullNamespace()
+        public static void AddingSameReaderForNullNamespace()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader1 = new XmlTextReader(TestData._XsdAuthor);
@@ -98,7 +98,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void AddingReaderOnXDRSchema()
+        public static void AddingReaderOnXDRSchema()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader1 = new XmlTextReader(TestData._SchemaXdr);
@@ -110,7 +110,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void ValidNamespaceReaderPositionedOnANonElementNode()
+        public static void ValidNamespaceReaderPositionedOnANonElementNode()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader reader = new XmlTextReader(TestData._FileXSD1);
@@ -127,7 +127,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void ValidNamespaceValidReaderWithResolverSetToNull()
+        public static void ValidNamespaceValidReaderWithResolverSetToNull()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
@@ -139,7 +139,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMDiffTNS()
+        public static void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMDiffTNS()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             //first schema
@@ -160,7 +160,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMSameTNS()
+        public static void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMSameTNS()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 
@@ -185,7 +185,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMSameNoTNS()
+        public static void SchemasWithNoSourceURIOneLoadedFromXmlSchemaReadOtherFromDOMSameNoTNS()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 
@@ -210,7 +210,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void RegressionTest1()
+        public static void RegressionTest1()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 
@@ -231,7 +231,7 @@ namespace System.Xml.Tests
         }
 
         [Fact]
-        public void RegressionTest2()
+        public static void RegressionTest2()
         {
             string xsd =
 @"<xsd:schema targetNamespace='x' xmlns='SMIT_Perf_TopLevelSettings_ListTypes_Large' xmlns:xsd='http://www.w3.org/2001/XMLSchema'>
