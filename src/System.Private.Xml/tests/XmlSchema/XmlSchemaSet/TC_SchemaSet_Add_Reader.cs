@@ -94,7 +94,7 @@ namespace System.Xml.Tests
             Assert.Equal(1, sc.Count);
             Assert.NotNull(Schema1);
             Assert.NotNull(Schema2);
-            Assert.Equal(Schema1, Schema2);
+            Assert.Same(Schema1, Schema2);
         }
 
         [Fact]
