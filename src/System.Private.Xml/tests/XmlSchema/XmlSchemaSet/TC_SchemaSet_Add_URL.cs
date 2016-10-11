@@ -2,169 +2,131 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+<<<<<<< HEAD
 using Xunit;
+=======
+>>>>>>> Add_Url
 using System.IO;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using Xunit;
 
 namespace System.Xml.Tests
 {
     //[TestCase(Name = "TC_SchemaSet_Add_URL", Desc = "")]
-    public class TC_SchemaSet_Add_URL : TC_SchemaSetBase
+    public static class TC_SchemaSet_Add_URL
     {
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v1 - ns = null, URL = null", Priority = 0)]
-        public void v1()
+        public static void v1()
         {
-            try
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                sc.Add((String)null, (String)null);
-            }
-            catch (ArgumentNullException)
-            {
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            // GLOBALIZATION
+            Assert.Throws<ArgumentNullException>("schemaUri", () => sc.Add((string)null, (string)null));
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v2 - ns = null, URL = valid", Priority = 0)]
-        public void v2()
+        public static void v2()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
-            XmlSchema Schema = sc.Add((String)null, TestData._FileXSD1);
-            Assert.Equal(Schema != null, true);
-
-            return;
+            XmlSchema Schema = sc.Add((string)null, TestData._FileXSD1);
+            Assert.NotNull(Schema);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v3 - ns = valid, URL = valid")]
-        public void v3()
+        public static void v3()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema = sc.Add("xsdauthor", TestData._XsdAuthor);
 
-            Assert.Equal(Schema != null, true);
-
-            return;
+            Assert.NotNull(Schema);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v4 - ns = valid, URL = invalid")]
-        public void v4()
+        public static void v4()
         {
-            try
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                sc.Add("xsdauthor", "http://Bla");
-            }
-            catch (Exception)
-            {
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            // GLOBALIZATION
+            Assert.Throws<XmlException>(() => sc.Add("xsdauthor", "http://Bla"));
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v5 - ns = unmatching, URL = valid")]
-        public void v5()
+        public static void v5()
         {
-            try
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                sc.Add("", TestData._FileXSD1);
-            }
-            catch (XmlSchemaException)
-            {
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            // GLOBALIZATION
+            Assert.Throws<XmlSchemaException>(() => sc.Add("", TestData._FileXSD1));
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v6 - adding same chameleon for diff NS")]
-        public void v6()
+        public static void v6()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema1 = sc.Add("xsdauthor1", TestData._XsdNoNs);
             XmlSchema Schema2 = sc.Add("xsdauthor2", TestData._XsdNoNs);
 
-            Assert.Equal(sc.Count, 2);
-            Assert.Equal(Schema1 != null, true);
+            Assert.Equal(2, sc.Count);
+            Assert.NotNull(Schema1);
             // the second call to add should be ignored with Add returning the first obj
-            Assert.Equal((Schema2 == Schema1), false);
-
-            return;
+            Assert.NotEqual(Schema2, Schema1);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v7 - adding same URL for null ns")]
-        public void v7()
+        public static void v7()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema1 = sc.Add(null, TestData._XsdAuthor);
             XmlSchema Schema2 = sc.Add(null, TestData._XsdAuthor);
 
-            Assert.Equal(sc.Count, 1);
-            Assert.Equal(Schema1 != null, true);
+            Assert.Equal(1, sc.Count);
+            Assert.NotNull(Schema1);
 
             // the second call to add should be ignored with Add returning the first obj
             Assert.Equal(Schema2, Schema1);
-
-            return;
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v8 - adding a schema with NS and one without, to a NS.")]
-        public void v8()
+        public static void v8()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema1 = sc.Add("xsdauthor", TestData._XsdAuthor);
             XmlSchema Schema2 = sc.Add("xsdauthor", TestData._XsdNoNs);
 
-            Assert.Equal(sc.Count, 2);
-            Assert.Equal(Schema1 != null, true);
-            Assert.Equal((Schema2 == Schema1), false);
-            return;
+            Assert.Equal(2, sc.Count);
+            Assert.NotNull(Schema1);
+            Assert.NotEqual(Schema2, Schema1);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v9 - adding URL to XSD schema")]
-        public void v9()
+        public static void v9()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
-
-            try
-            {
-                sc.Add(null, Path.Combine(TestData._Root, "schema1.xdr"));
-            }
-            catch (XmlSchemaException)
-            {
-                Assert.Equal(sc.Count, 0);
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            // GLOBALIZATION
+            Assert.Throws<XmlSchemaException>(() => sc.Add(null, Path.Combine(TestData._Root, "schema1.xdr")));
+            Assert.Equal(0, sc.Count);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v10 - Adding schema with top level element collision")]
-        public void v10()
+        public static void v10()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 
@@ -172,24 +134,17 @@ namespace System.Xml.Tests
             XmlSchema Schema2 = sc.Add("xsdauthor", TestData._XsdAuthorDup);
 
             // schemas should be successfully added
-            Assert.Equal(sc.Count, 2);
-            try
-            {
-                sc.Compile();
-            }
-            catch (XmlSchemaException)
-            {
-                Assert.Equal(sc.Count, 2);
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            Assert.Equal(2, sc.Count);
+
+            // GLOBALIZATION
+            Assert.Throws<XmlSchemaException>(() => sc.Compile());
+            Assert.Equal(2, sc.Count);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v11 - Adding schema with top level element collision to Compiled Schemaset")]
-        public void v11()
+        public static void v11()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema1 = sc.Add("xsdauthor", TestData._XsdAuthor);
@@ -197,46 +152,32 @@ namespace System.Xml.Tests
             XmlSchema Schema2 = sc.Add("xsdauthor", TestData._XsdAuthorDup);
 
             // schemas should be successfully added
-            Assert.Equal(sc.Count, 2);
-            try
-            {
-                sc.Compile();
-            }
-            catch (XmlSchemaException)
-            {
-                Assert.Equal(sc.Count, 2);
+            Assert.Equal(2, sc.Count);
 
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            // GLOBALIZATION
+            Assert.Throws<XmlSchemaException>(() => sc.Compile());
+            Assert.Equal(2, sc.Count);
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v12 - Adding schema with no tagetNS with element already existing in NS")]
-        public void v12()
+        public static void v12()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema1 = sc.Add("xsdauthor", TestData._XsdAuthor);
             XmlSchema Schema2 = sc.Add("xsdauthor", TestData._XsdAuthorNoNs);
             // schemas should be successfully added
-            try
-            {
-                sc.Compile();
-            }
-            catch (XmlSchemaException)
-            {
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+
+            // GLOBALIZATION
+            Assert.Throws<XmlSchemaException>(() => sc.Compile());
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "435368 - schema validation error")]
-        public void v13()
+        // TODO: ADD ASSERTS
+        public static void v13()
         {
             string xsdPath = Path.Combine(TestData._Root, @"bug435368.xsd");
             string xmlPath = Path.Combine(TestData._Root, @"bug435368.xml");
@@ -257,13 +198,18 @@ namespace System.Xml.Tests
             xpn = xd.CreateNavigator().SelectSingleNode("/root/sg1");
             xpn.SetValue("a");
             xd.Validate(null, ((IHasXmlNode)xpn).GetNode());
-
-            return;
         }
 
         //====================TFS_298991 XMLSchemaSet.Compile of an XSD containing with a large number of elements results in a System.StackOverflow error
 
-        private static void GenerateSequenceXsdFile(int size, string xsdFileName)
+        [OuterLoop]
+        [Theory]
+        [InlineData(5000, "5000s.xsd")]
+        [InlineData(10000, "10000s.xsd")]
+        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Sequence, 5000", Params = new object[] { 5000, "5000s.xsd" })]
+        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Sequence, 10000", Params = new object[] { 10000, "10000s.xsd" })]
+        // TODO: ADD ASSERTS
+        public static void GenerateSequenceXsdFile(int size, string xsdFileName)
         {
             // generate the xsd file, the file is some thing like this
             //-------------------------------------------------------
@@ -283,36 +229,44 @@ namespace System.Xml.Tests
             //</xsd:element>
             //</xsd:schema>
             //------------------------------------------------------
-            StreamWriter sw = new StreamWriter(new FileStream(xsdFileName, FileMode.Create, FileAccess.Write));
-
-            string head = @"<?xml version='1.0'?>
+            using (StreamWriter sw = new StreamWriter(new FileStream(xsdFileName, FileMode.Create, FileAccess.Write)))
+            {
+                string head = @"<?xml version='1.0'?>
             <xsd:schema xmlns:xsd='http://www.w3.org/2001/XMLSchema' >";
 
-            string body = @" <xsd:element name='myFields'>
+                string body = @" <xsd:element name='myFields'>
                               <xsd:complexType>
                                <xsd:sequence>";
 
-            string end = @"    </xsd:sequence>
+                string end = @"    </xsd:sequence>
                               </xsd:complexType>
                             </xsd:element>
                           </xsd:schema>";
 
-            sw.WriteLine(head);
+                sw.WriteLine(head);
 
-            for (int ii = 0; ii < size; ++ii)
-                sw.WriteLine("       <xsd:element name='field{0}' />", ii);
+                for (int ii = 0; ii < size; ++ii)
+                    sw.WriteLine("       <xsd:element name='field{0}' />", ii);
 
-            sw.WriteLine(body);
+                sw.WriteLine(body);
 
-            for (int ii = 0; ii < size; ++ii)
-                sw.WriteLine("  <xsd:element ref='field{0}' minOccurs='0' />", ii);
+                for (int ii = 0; ii < size; ++ii)
+                    sw.WriteLine("  <xsd:element ref='field{0}' minOccurs='0' />", ii);
 
-            sw.WriteLine(end);
+                sw.WriteLine(end);
+            }
 
-            sw.Dispose();
+            XmlSchemaSet ss = new XmlSchemaSet();
+            ss.Add("", xsdFileName);
+            ss.Compile();
         }
 
-        private static void GenerateChoiceXsdFile(int size, string xsdFileName)
+        [OuterLoop]
+        [Theory]
+        [InlineData(5000, "5000c.xsd")]
+        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Choice, 5000", Params = new object[] { 5000, "5000c.xsd" })]
+        // TODO: ADD ASSERTS
+        public static void GenerateChoiceXsdFile(int size, string xsdFileName)
         {
             // generate the xsd file, the file is some thing like this
             //-------------------------------------------------------
@@ -332,75 +286,35 @@ namespace System.Xml.Tests
             //</xsd:element>
             //</xsd:schema>
             //------------------------------------------------------
-            StreamWriter sw = new StreamWriter(new FileStream(xsdFileName, FileMode.Create, FileAccess.Write));
-
-            string head = @"<?xml version='1.0'?>
+            using (StreamWriter sw = new StreamWriter(new FileStream(xsdFileName, FileMode.Create, FileAccess.Write)))
+            {
+                string head = @"<?xml version='1.0'?>
             <xsd:schema xmlns:xsd='http://www.w3.org/2001/XMLSchema' >";
 
-            string body = @" <xsd:element name='myFields'>
+                string body = @" <xsd:element name='myFields'>
                               <xsd:complexType>
                                <xsd:choice>";
 
-            string end = @"    </xsd:choice>
+                string end = @"    </xsd:choice>
                               </xsd:complexType>
                             </xsd:element>
                           </xsd:schema>";
 
-            sw.WriteLine(head);
+                sw.WriteLine(head);
 
-            for (int ii = 0; ii < size; ++ii)
-                sw.WriteLine("       <xsd:element name='field{0}' />", ii);
+                for (int ii = 0; ii < size; ++ii)
+                    sw.WriteLine("       <xsd:element name='field{0}' />", ii);
 
-            sw.WriteLine(body);
+                sw.WriteLine(body);
 
-            for (int ii = 0; ii < size; ++ii)
-                sw.WriteLine("  <xsd:element ref='field{0}' minOccurs='0' />", ii);
+                for (int ii = 0; ii < size; ++ii)
+                    sw.WriteLine("  <xsd:element ref='field{0}' minOccurs='0' />", ii);
 
-            sw.WriteLine(end);
-
-            sw.Dispose();
-        }
-
-        public void verifyXsd(string file)
-        {
-            try
-            {
-                XmlSchemaSet ss = new XmlSchemaSet();
-                ss.Add("", file);
-                ss.Compile();    // if throws StackOfFlowException will cause test failure
+                sw.WriteLine(end);
             }
-            catch (OutOfMemoryException)
-            {
-                // throw OutOfMemoryException is ok since it is catchable.
-            }
-        }
-
-        [OuterLoop]
-        [Theory]
-        [InlineData(5000, "5000s.xsd")]
-        [InlineData(10000, "10000s.xsd")]
-        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Sequence, 5000", Params = new object[] { 5000, "5000s.xsd" })]
-        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Sequence, 10000", Params = new object[] { 10000, "10000s.xsd" })]
-        public void bug298991Sequence(int size, string xsdFileName)
-        {
-            GenerateSequenceXsdFile(size, xsdFileName);
-
-            verifyXsd(xsdFileName);
-
-            return;
-        }
-
-        [OuterLoop]
-        [Theory]
-        [InlineData(5000, "5000c.xsd")]
-        //[Variation(Desc = "Bug 298991 XMLSchemaSet.Compile cause StackOverflow - Choice, 5000", Params = new object[] { 5000, "5000c.xsd" })]
-        public void bug298991Choice(int size, string xsdFileName)
-        {
-            GenerateChoiceXsdFile(size, xsdFileName);
-
-            verifyXsd(xsdFileName);
-
-            return;
+            XmlSchemaSet ss = new XmlSchemaSet();
+            ss.Add("", xsdFileName);
+            ss.Compile();
         }
     }
 }
