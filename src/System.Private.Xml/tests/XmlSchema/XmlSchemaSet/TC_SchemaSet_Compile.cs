@@ -2,92 +2,43 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+<<<<<<< HEAD
 using Xunit;
 using Xunit.Abstractions;
+=======
+using System.Collections.Generic;
+>>>>>>> Compile
 using System.IO;
 using System.Xml.Schema;
+using Xunit;
 
 namespace System.Xml.Tests
 {
     //[TestCase(Name = "TC_SchemaSet_Compile", Desc = "", Priority = 0)]
-    public class TC_SchemaSet_Compile : TC_SchemaSetBase
+    public static class TC_SchemaSet_Compile
     {
-        private ITestOutputHelper _output;
-
-        public TC_SchemaSet_Compile(ITestOutputHelper output)
-        {
-            _output = output;
-        }
-
-
-        public bool bWarningCallback;
-        public bool bErrorCallback;
-        public int errorCount;
-        public int warningCount;
-        public bool WarningInnerExceptionSet = false;
-        public bool ErrorInnerExceptionSet = false;
-
-        public void Initialize()
-        {
-            bWarningCallback = bErrorCallback = false;
-            errorCount = warningCount = 0;
-            WarningInnerExceptionSet = ErrorInnerExceptionSet = false;
-        }
-
-        //hook up validaton callback
-        public void ValidationCallback(object sender, ValidationEventArgs args)
-        {
-            if (args.Severity == XmlSeverityType.Warning)
-            {
-                _output.WriteLine("WARNING: ");
-                bWarningCallback = true;
-                warningCount++;
-                WarningInnerExceptionSet = (args.Exception.InnerException != null);
-                _output.WriteLine("\nInnerExceptionSet : " + WarningInnerExceptionSet + "\n");
-            }
-            else if (args.Severity == XmlSeverityType.Error)
-            {
-                _output.WriteLine("ERROR: ");
-                bErrorCallback = true;
-                errorCount++;
-                ErrorInnerExceptionSet = (args.Exception.InnerException != null);
-                _output.WriteLine("\nInnerExceptionSet : " + ErrorInnerExceptionSet + "\n");
-            }
-
-            _output.WriteLine(args.Message); // Print the error to the screen.
-        }
-
         [Fact]
         //[Variation(Desc = "v1 - Compile on empty collection")]
-        public void v1()
+        public static void v1()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             sc.Compile();
-            return;
         }
 
         [Fact]
         //[Variation(Desc = "v2 - Compile after error in Add")]
-        public void v2()
+        public static void v2()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 
-            try
-            {
-                sc.Add(null, Path.Combine(TestData._Root, "schema1.xdr"));
-            }
-            catch (XmlSchemaException)
-            {
-                sc.Compile();
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            Assert.Throws<XmlSchemaException>(() => sc.Add(null, Path.Combine(TestData._Root, "schema1.xdr")));
+            sc.Compile();
+            // GLOBALIZATION
         }
 
         [Fact]
         //[Variation(Desc = "TFS_470021 Unexpected local particle qualified name when chameleon schema is added to set")]
-        public void TFS_470021()
+        public static void TFS_470021()
         {
             string cham = @"<?xml version='1.0' encoding='utf-8' ?>
 <xs:schema id='a0'
@@ -124,27 +75,50 @@ namespace System.Xml.Tests
                     w.WriteNode(r, true);
             }
             XmlSchemaSet ss = new XmlSchemaSet();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            int warningCount = 0;
+            int errorCount = 0;
+            List<XmlSchemaException> exceptions = new List<XmlSchemaException>();
+
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                if (e.Severity == XmlSeverityType.Error)
+                {
+                    errorCount++;
+                }
+                else
+                {
+                    warningCount++;
+                }
+                if (e.Exception != null)
+                {
+                    exceptions.Add(e.Exception);
+                }
+            };
 
             ss.Add(null, XmlReader.Create(new StringReader(cham)));
             ss.Add(null, XmlReader.Create(new StringReader(main)));
             ss.Compile();
 
             Assert.Equal(ss.Count, 2);
-            foreach (XmlSchemaElement e in ss.GlobalElements.Values)
+            XmlSchemaElement chameleon = (XmlSchemaElement)ss.GlobalElements[new XmlQualifiedName("gect1_a")];
             {
-                _output.WriteLine(e.QualifiedName.ToString());
-                XmlSchemaComplexType type = e.ElementSchemaType as XmlSchemaComplexType;
+                XmlSchemaComplexType type = chameleon.ElementSchemaType as XmlSchemaComplexType;
                 XmlSchemaSequence seq = type.ContentTypeParticle as XmlSchemaSequence;
-                foreach (XmlSchemaObject child in seq.Items)
-                {
-                    if (child is XmlSchemaElement)
-                        _output.WriteLine("\t" + (child as XmlSchemaElement).QualifiedName);
-                }
+                Assert.Equal(1, seq.Items.Count);
+                XmlSchemaElement elem = Assert.IsType<XmlSchemaElement>(seq.Items[0]);
+                Assert.NotEqual(string.Empty, elem.QualifiedName.ToString());
             }
-            Assert.Equal(warningCount, 0);
-            Assert.Equal(errorCount, 0);
-            return;
+            XmlSchemaElement other = (XmlSchemaElement)ss.GlobalElements[new XmlQualifiedName("root", "http://tempuri.org/chameleon1")];
+            {
+                XmlSchemaComplexType type = other.ElementSchemaType as XmlSchemaComplexType;
+                XmlSchemaSequence seq = type.ContentTypeParticle as XmlSchemaSequence;
+                Assert.Equal(1, seq.Items.Count);
+                Assert.IsType<XmlSchemaAny>(seq.Items[0]);
+            }
+            Assert.Equal(0, warningCount);
+            Assert.Equal(0, errorCount);
+            Assert.Empty(exceptions);
         }
     }
 }
