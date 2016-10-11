@@ -14,10 +14,7 @@ namespace System.Xml.Tests
         public static void NullNamespaceAndNullReader()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
-            Exception e = Record.Exception(() => sc.Add((string)null, (XmlReader)null));
-
-            Assert.NotNull(e);
-            Assert.IsType<ArgumentNullException>(e);
+            Assert.Throws<ArgumentNullException>("targetNamespace", () => sc.Add((string)null, (XmlReader)null));
         }
 
         [Fact]
@@ -50,10 +47,7 @@ namespace System.Xml.Tests
 
             while (Reader.Read()) { /* Read until end */ }
 
-            Exception e = Record.Exception(() => sc.Add("xsdauthor", Reader));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => sc.Add("xsdauthor", Reader));
         }
 
         [Fact]
@@ -62,10 +56,7 @@ namespace System.Xml.Tests
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader = new XmlTextReader(TestData._XsdAuthor);
 
-            Exception e = Record.Exception(() => sc.Add("", Reader));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => sc.Add("", Reader));
         }
 
         [Fact]
@@ -103,10 +94,7 @@ namespace System.Xml.Tests
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlTextReader Reader1 = new XmlTextReader(TestData._SchemaXdr);
 
-            Exception e = Record.Exception(() => sc.Add(null, Reader1));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => sc.Add(null, Reader1));
         }
 
         [Fact]
@@ -120,10 +108,7 @@ namespace System.Xml.Tests
             {
                 reader.Read();
             }
-            Exception e = Record.Exception(() => sc.Add(null, reader));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => sc.Add(null, reader));
         }
 
         [Fact]
@@ -244,10 +229,7 @@ namespace System.Xml.Tests
             XmlSchemaSet s = new XmlSchemaSet();
             XmlReader r = XmlReader.Create(new StringReader(xsd));
 
-            Exception e = Record.Exception(() => s.Add(null, r));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            XmlSchemaException e = Assert.Throws<XmlSchemaException>(() => s.Add(null, r));
             Assert.False(e.Message.EndsWith(".."));
         }
     }

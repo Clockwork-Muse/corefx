@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Schema;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace System.Xml.Tests
 {
@@ -21,16 +20,12 @@ namespace System.Xml.Tests
             Assert.Equal(0, sc.Count);
             Assert.False(sc.IsCompiled);
 
-            Exception add = Record.Exception(() => sc.Add((XmlSchema)null));
-            Assert.NotNull(add);
-            Assert.IsType<ArgumentNullException>(add);
+            Assert.Throws<ArgumentNullException>("schema", () => sc.Add((XmlSchema)null));
 
             Assert.Equal(0, sc.Count);
             Assert.False(sc.IsCompiled);
 
-            Exception contains = Record.Exception(() => sc.Contains((XmlSchema)null));
-            Assert.NotNull(contains);
-            Assert.IsType<ArgumentNullException>(contains);
+            Assert.Throws<ArgumentNullException>("schema", () => sc.Contains((XmlSchema)null));
 
             Assert.False(sc.Contains((string)null));
         }
@@ -94,10 +89,7 @@ namespace System.Xml.Tests
             Assert.Same(Schema, SchemaNew1);
             Assert.NotSame(Schema, SchemaNew2);
 
-            Exception e = Record.Exception(() => sc.Compile());
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => sc.Compile());
 
             Assert.Equal(2, sc.Count);
             Assert.True(sc.Contains(SchemaNew1));
@@ -151,10 +143,12 @@ namespace System.Xml.Tests
             // check its not the same schema as first
             Assert.Same(Schema, SchemaNew1);
             Assert.NotSame(Schema, SchemaNew2);
-
-            Exception e = Record.Exception(() => sc.Compile());
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            
+            Assert.Throws<XmlSchemaException>(() => sc.Compile());
+            Assert.Equal(2, sc.Count);
+            Assert.True(sc.Contains(SchemaNew1));
+            Assert.True(sc.Contains(SchemaNew2));
+            Assert.False(sc.IsCompiled);
         }
 
         //[Variation(Desc = "v7 - 430164_import Add(XmlSchema) does not check if location already exists")]
@@ -169,14 +163,6 @@ namespace System.Xml.Tests
         public void v8()
         {
             Assert.Equal(0, AddSchema(Path.Combine(TestData._Root, "Bug430164_b_include.xsd"), Path.Combine(TestData._Root, "Bug430164.xsd"), 1));
-
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
-
-            Assert.Equal(2, sc.Count);
-            Assert.True(sc.Contains(SchemaNew1));
-            Assert.True(sc.Contains(SchemaNew2));
-            Assert.False(sc.IsCompiled);
         }
 
         [Fact]
@@ -216,9 +202,7 @@ namespace System.Xml.Tests
             Assert.True(s.Contains(bSchema));
             Assert.False(s.IsCompiled);
 
-            Exception e = Record.Exception(() => s.Compile());
-            Assert.NotNull(e);
-            Assert.IsType<XmlSchemaException>(e);
+            Assert.Throws<XmlSchemaException>(() => s.Compile());
 
             Assert.Equal(expCount + 1, s.Count);
             Assert.True(s.Contains(aSchema));
