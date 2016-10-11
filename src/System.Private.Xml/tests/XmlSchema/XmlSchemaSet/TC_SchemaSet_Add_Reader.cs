@@ -14,7 +14,7 @@ namespace System.Xml.Tests
         public static void NullNamespaceAndNullReader()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
-            Assert.Throws<ArgumentNullException>("targetNamespace", () => sc.Add((string)null, (XmlReader)null));
+            Assert.Throws<ArgumentNullException>("schemaDocument", () => sc.Add((string)null, (XmlReader)null));
         }
 
         [Fact]
