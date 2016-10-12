@@ -2,45 +2,29 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Xml.Schema;
 using Xunit;
 using Xunit.Abstractions;
-using System.Xml.Schema;
 
 namespace System.Xml.Tests
 {
     //[TestCase(Name = "TC_SchemaSet_Contains_Schema", Desc = "")]
-    public class TC_SchemaSet_Contains_Schema : TC_SchemaSetBase
+    public static class TC_SchemaSet_Contains_Schema
     {
-        private ITestOutputHelper _output;
-
-        public TC_SchemaSet_Contains_Schema(ITestOutputHelper output)
-        {
-            _output = output;
-        }
-
-
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v1 - Contains with null")]
-        public void v1()
+        public static void v1()
         {
-            try
-            {
-                XmlSchemaSet sc = new XmlSchemaSet();
-                sc.Contains((XmlSchema)null);
-            }
-            catch (ArgumentNullException)
-            {
-                // GLOBALIZATION
-                return;
-            }
-            Assert.True(false);
+            XmlSchemaSet sc = new XmlSchemaSet();
+            // GLOBALIZATION
+            Assert.Throws<ArgumentNullException>("schema", () => sc.Contains((XmlSchema)null));
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v2 - Contains with not added schema")]
-        public void v2()
+        public static void v2()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 #pragma warning disable 0618
@@ -49,15 +33,13 @@ namespace System.Xml.Tests
 
             XmlSchema Schema = scl.Add(null, TestData._XsdAuthor);
 
-            Assert.Equal(sc.Contains(Schema), false);
-
-            return;
+            Assert.False(sc.Contains(Schema));
         }
 
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v3 - Contains with existing schema, Remove it, Contains again", Priority = 0)]
-        public void v3()
+        public static void v3()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
 #pragma warning disable 0618
@@ -67,11 +49,11 @@ namespace System.Xml.Tests
             XmlSchema Schema = scl.Add(null, TestData._XsdAuthor);
             sc.Add(Schema);
 
-            Assert.Equal(sc.Contains(Schema), true);
+            Assert.True(sc.Contains(Schema));
 
             sc.Remove(Schema);
 
-            Assert.Equal(sc.Contains(Schema), false);
+            Assert.False(sc.Contains(Schema));
 
             return;
         }
@@ -79,14 +61,12 @@ namespace System.Xml.Tests
         //-----------------------------------------------------------------------------------
         [Fact]
         //[Variation(Desc = "v4 - Contains for added with URL", Priority = 0)]
-        public void v4()
+        public static void v4()
         {
             XmlSchemaSet sc = new XmlSchemaSet();
             XmlSchema Schema = sc.Add(null, TestData._XsdAuthor);
 
-            Assert.Equal(sc.Contains(Schema), true);
-
-            return;
+            Assert.True(sc.Contains(Schema));
         }
     }
 }
