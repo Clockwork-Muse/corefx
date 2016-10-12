@@ -43,6 +43,7 @@ namespace System.Xml.Tests
         [InlineData("a", "e1", "e2", "", "e3", "e4")]
         //[Variation(Desc = "v2.2 - GlobalElements with set with two schemas, both with NS", Params = new object[] { "a", "e1", "e2", "b", "e3", "e4" })]
         [InlineData("a", "e1", "e2", "b", "e3", "e4")]
+        public static void v2(string ns1, string e1, string e2, string ns2, string e3, string e4)
         {
             XmlSchema s1 = GetSchema(ns1, e1, e2);
             XmlSchema s2 = GetSchema(ns2, e3, e4);
@@ -91,6 +92,7 @@ namespace System.Xml.Tests
         [InlineData("", "e1", "e2", "a", "e3", "e4", false)]
         //[Variation(Desc = "v3.8 - GlobalElements with a set having schema (ns) to another set with schema(ns), no compile", Params = new object[] { "a", "e1", "e2", "b", "e3", "e4", false })]
         [InlineData("a", "e1", "e2", "b", "e3", "e4", false)]
+        public static void v3(string ns1, string e1, string e2, string ns2, string e3, string e4, bool doCompile)
         {
             XmlSchema s1 = GetSchema(ns1, e1, e2);
             XmlSchema s2 = GetSchema(ns2, e3, e4);
