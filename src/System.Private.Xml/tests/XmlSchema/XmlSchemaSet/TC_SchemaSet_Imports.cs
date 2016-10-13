@@ -486,13 +486,13 @@ namespace System.Xml.Tests
 
         /********* reprocess compile import**************/
 
+        [Theory]
         //[Variation(Desc = "v101.3 - Import: A(ns-a) which improts B (no ns)", Priority = 0, Params = new object[] { "import_v4_a.xsd", "import_v4_b.xsd", 2, null })]
         [InlineData("import_v4_a.xsd", "import_v4_b.xsd", 2, null)]
         //[Variation(Desc = "v101.2 - Import: A(ns-a) improts B (ns-b)", Priority = 0, Params = new object[] { "import_v2_a.xsd", "import_v2_b.xsd", 2, "ns-b" })]
         [InlineData("import_v2_a.xsd", "import_v2_b.xsd", 2, "ns-b")]
         //[Variation(Desc = "v101.1 - Improt: A with NS imports B with no NS", Priority = 0, Params = new object[] { "import_v1_a.xsd", "include_v1_b.xsd", 2, null })]
         [InlineData("import_v1_a.xsd", "include_v1_b.xsd", 2, null)]
-        [Theory]
         public static void v101(string filename1, string schemaLocation, int count, string targetNamespace)
         {
             XmlSchemaSet sc = new XmlSchemaSet();
