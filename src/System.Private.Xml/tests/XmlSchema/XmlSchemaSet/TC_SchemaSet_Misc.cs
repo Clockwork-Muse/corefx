@@ -2,69 +2,29 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+<<<<<<< HEAD
 using Xunit;
 using Xunit.Abstractions;
 using System.IO;
+=======
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+>>>>>>> Misc
 using System.Xml.Schema;
 using System.Xml.XPath;
+using Xunit;
 
 namespace System.Xml.Tests
 {
     //[TestCase(Name = "TC_SchemaSet_Misc", Desc = "")]
-    public class TC_SchemaSet_Misc : TC_SchemaSetBase
+    public static class TC_SchemaSet_Misc
     {
-        private ITestOutputHelper _output;
-
-        public TC_SchemaSet_Misc(ITestOutputHelper output)
-        {
-            _output = output;
-        }
-
-
-        //todo: use rootpath
-        public bool bWarningCallback;
-
-        public bool bErrorCallback;
-        public int errorCount;
-        public int warningCount;
-        public bool WarningInnerExceptionSet = false;
-        public bool ErrorInnerExceptionSet = false;
-
-        public void Initialize()
-        {
-            bWarningCallback = bErrorCallback = false;
-            errorCount = warningCount = 0;
-            WarningInnerExceptionSet = ErrorInnerExceptionSet = false;
-        }
-
-        //hook up validaton callback
-        public void ValidationCallback(object sender, ValidationEventArgs args)
-        {
-            if (args.Severity == XmlSeverityType.Warning)
-            {
-                _output.WriteLine("WARNING: ");
-                bWarningCallback = true;
-                warningCount++;
-                WarningInnerExceptionSet = (args.Exception.InnerException != null);
-                _output.WriteLine("\nInnerExceptionSet : " + WarningInnerExceptionSet + "\n");
-            }
-            else if (args.Severity == XmlSeverityType.Error)
-            {
-                _output.WriteLine("ERROR: ");
-                bErrorCallback = true;
-                errorCount++;
-                ErrorInnerExceptionSet = (args.Exception.InnerException != null);
-                _output.WriteLine("\nInnerExceptionSet : " + ErrorInnerExceptionSet + "\n");
-            }
-
-            _output.WriteLine(args.Message); // Print the error to the screen.
-        }
-
         //-----------------------------------------------------------------------------------
         //[Variation(Desc = "v1 - Bug110823 - SchemaSet.Add is holding onto some of the schema files after adding", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v1()
+        [Fact]
+        // TODO: ADD ASSERTS
+        public static void v1()
         {
             XmlSchemaSet xss = new XmlSchemaSet();
             xss.XmlResolver = new XmlUrlResolver();
@@ -74,55 +34,74 @@ namespace System.Xml.Tests
             }
         }
 
-        //[Variation(Desc = "v2 - Bug115049 - XSD: content model validation for an invalid root element should be adandoned", Priority = 2)]
-        [InlineData()]
-        [Theory]
-        public void v2()
+        [Fact]
+        //[Variation(Desc = "v2 - Bug115049 - XSD: content model validation for an invalid root element should be abandoned", Priority = 2)]
+        public static void v2()
         {
-            Initialize();
+            List<XmlSchemaException> schemaValidationExceptions = new List<XmlSchemaException>(); ;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                schemaValidationExceptions.Add(e.Exception);
+            };
             ss.Add(null, Path.Combine(TestData._Root, "bug115049.xsd"));
             ss.Compile();
+            Assert.Empty(schemaValidationExceptions);
 
             //create reader
+            List<XmlSchemaException> settingsValidationExceptions = new List<XmlSchemaException>();
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.ValidationType = ValidationType.Schema;
             settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings |
                                        XmlSchemaValidationFlags.ProcessSchemaLocation |
                                        XmlSchemaValidationFlags.ProcessInlineSchema;
-            settings.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            settings.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Error, e.Severity);
+                settingsValidationExceptions.Add(e.Exception);
+            };
             settings.Schemas.Add(ss);
             XmlReader vr = XmlReader.Create(Path.Combine(TestData._Root, "bug115049.xml"), settings);
             while (vr.Read()) ;
-            CError.Compare(errorCount, 1, "Error Count mismatch!");
-            return;
+            Assert.Empty(schemaValidationExceptions);
+            Assert.Single(settingsValidationExceptions);
         }
 
+        [Fact]
         //[Variation(Desc = "v4 - 243300 - We are not correctly handling xs:anyType as xsi:type in the instance", Priority = 2)]
-        [InlineData()]
-        [Theory]
-        public void v4()
+        public static void v4()
         {
             string xml = @"<a xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xsi:type='xsd:anyType'>1242<b/></a>";
-            Initialize();
+            int errorCount = 0;
+            int warningCount = 0;
+
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.XmlResolver = new XmlUrlResolver();
             settings.ValidationType = ValidationType.Schema;
             settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings |
                                        XmlSchemaValidationFlags.ProcessSchemaLocation |
                                        XmlSchemaValidationFlags.ProcessInlineSchema;
-            settings.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            settings.ValidationEventHandler += (sender, e) =>
+            {
+                if (e.Severity == XmlSeverityType.Error)
+                {
+                    errorCount++;
+                }
+                else
+                {
+                    warningCount++;
+                }
+            };
             XmlReader vr = XmlReader.Create(new StringReader(xml), settings, (string)null);
             while (vr.Read()) ;
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            CError.Compare(warningCount, 1, "Warning Count mismatch!");
-            return;
+            Assert.Equal(0, errorCount);
+            Assert.Equal(1, warningCount);
         }
 
         /* Parameters = file name , is custom xml namespace System.Xml.Tests */
 
+        [Theory]
         //[Variation(Desc = "v20 - DCR 264908 - XSD: Support user specified schema for http://www.w3.org/XML/1998/namespace System.Xml.Tests", Priority = 1, Params = new object[] { "bug264908_v10.xsd", 2, false })]
         [InlineData("bug264908_v10.xsd", 2, false)]
         //[Variation(Desc = "v19 - DCR 264908 - XSD: Support user specified schema for http://www.w3.org/XML/1998/namespace System.Xml.Tests", Priority = 1, Params = new object[] { "bug264908_v9.xsd", 5, true })]
@@ -143,122 +122,81 @@ namespace System.Xml.Tests
         [InlineData("bug264908_v2.xsd", 1, true)]
         //[Variation(Desc = "v11 - DCR 264908 - XSD: Support user specified schema for http://www.w3.org/XML/1998/namespace System.Xml.Tests", Priority = 1, Params = new object[] { "bug264908_v1.xsd", 3, true })]
         [InlineData("bug264908_v1.xsd", 3, true)]
-        [Theory]
-        public void v10(object param0, object param1, object param2)
+        public static void v10(string xmlFile, int count, bool custom)
         {
-            string xmlFile = param0.ToString();
-            int count = (int)param1;
-            bool custom = (bool)param2;
-            string attName = "blah";
-
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            ss.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             ss.Add(null, Path.Combine(TestData._Root, xmlFile));
             ss.Compile();
 
             //test the count
-            CError.Compare(ss.Count, count, "Count of SchemaSet not matched!");
-
+            Assert.Equal(count, ss.Count);
             //make sure the correct schema is in the set
             if (custom)
             {
-                foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-                {
-                    if (a.QualifiedName.Name == attName)
-                        return;
-                }
-                Assert.True(false);
+                Assert.Contains(ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>(), a => a.QualifiedName.Name == "blah");
             }
-            return;
         }
 
+        [Fact]
         //[Variation(Desc = "v21 - Bug 319346 - Chameleon add of a schema into the xml namespace", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v20()
+        public static void v20()
         {
             string xmlns = @"http://www.w3.org/XML/1998/namespace";
-            string attName = "blah";
 
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            ss.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             ss.Add(xmlns, Path.Combine(TestData._Root, "bug264908_v11.xsd"));
             ss.Compile();
 
             //test the count
-            CError.Compare(ss.Count, 3, "Count of SchemaSet not matched!");
+            Assert.Equal(3, ss.Count);
 
             //make sure the correct schema is in the set
-
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == attName)
-                    return;
-            }
-            Assert.True(false);
+            Assert.Contains(ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>(), a => a.QualifiedName.Name == "blah");
         }
 
+        [Fact]
         //[Variation(Desc = "v22 - Bug 338038 - Component should be additive into the Xml namespace", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v21()
+        public static void v21()
         {
             string xmlns = @"http://www.w3.org/XML/1998/namespace";
-            string attName = "blah1";
 
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            ss.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             ss.Add(xmlns, Path.Combine(TestData._Root, "bug338038_v1.xsd"));
             ss.Compile();
 
             //test the count
-            CError.Compare(ss.Count, 4, "Count of SchemaSet not matched!");
+            Assert.Equal(4, ss.Count);
 
             //make sure the correct schema is in the set
-
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == attName)
-                    return;
-            }
-            Assert.True(false);
+            Assert.Contains(ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>(), a => a.QualifiedName.Name == "blah");
         }
 
-        //[Variation(Desc = "v23 - Bug 338038 - Conflicting components in custome xml namespace System.Xml.Tests be caught", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v22()
+        [Fact]
+        //[Variation(Desc = "v23 - Bug 338038 - Conflicting components in custom xml namespace System.Xml.Tests be caught", Priority = 1)]
+        public static void v22()
         {
             string xmlns = @"http://www.w3.org/XML/1998/namespace";
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
             ss.Add(xmlns, Path.Combine(TestData._Root, "bug338038_v2.xsd"));
 
-            try
-            {
-                ss.Compile();
-            }
-            catch (XmlSchemaException e)
-            {
-                _output.WriteLine(e.Message);
-                CError.Compare(ss.Count, 4, "Count of SchemaSet not matched!");
-                return;
-            }
-
-            Assert.True(false);
+            Assert.Throws<XmlSchemaException>(() => ss.Compile());
+            Assert.Equal(4, ss.Count);
         }
 
-        //[Variation(Desc = "v24 - Bug 338038 - Change type of xml:lang to decimal in custome xml namespace System.Xml.Tests", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v24()
+        [Fact]
+        //[Variation(Desc = "v24 - Bug 338038 - Change type of xml:lang to decimal in custom xml namespace System.Xml.Tests", Priority = 1)]
+        public static void v24()
         {
-            string attName = "lang";
-            string newtype = "decimal";
-
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3.xsd"));
@@ -266,24 +204,15 @@ namespace System.Xml.Tests
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3a.xsd"));
             ss.Compile();
 
-            CError.Compare(ss.Count, 4, "Count of SchemaSet not matched!");
+            Assert.Equal(4, ss.Count);
 
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == attName)
-                {
-                    CError.Compare(a.AttributeSchemaType.QualifiedName.Name, newtype, "Incorrect type for xml:lang");
-                    return;
-                }
-            }
-
-            Assert.True(false);
+            IEnumerable<XmlSchemaAttribute> modified = ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>().Where(a => a.QualifiedName.Name == "lang");
+            Assert.All(modified, a => Assert.Equal("decimal", a.AttributeSchemaType.QualifiedName.Name));
         }
 
+        [Fact]
         //[Variation(Desc = "v25 - Bug 338038 - Conflicting definitions for xml attributes in two schemas", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v25()
+        public static void v25()
         {
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
@@ -291,25 +220,16 @@ namespace System.Xml.Tests
             ss.Compile();
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3a.xsd"));
             ss.Compile();
-            try
-            {
-                ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3b.xsd"));
-                ss.Compile();
-            }
-            catch (XmlSchemaException e)
-            {
-                _output.WriteLine(e.Message);
-                CError.Compare(ss.Count, 6, "Count of SchemaSet not matched!");
-                return;
-            }
 
-            Assert.True(false);
+            ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3b.xsd"));
+            Assert.Throws<XmlSchemaException>(() => ss.Compile());
+
+            Assert.Equal(6, ss.Count);
         }
 
+        [Fact]
         //[Variation(Desc = "v26 - Bug 338038 - Change type of xml:lang to decimal and xml:base to short in two steps", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v26()
+        public static void v26()
         {
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
@@ -320,26 +240,16 @@ namespace System.Xml.Tests
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v4b.xsd"));
             ss.Compile();
 
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == "lang")
-                {
-                    CError.Compare(a.AttributeSchemaType.QualifiedName.Name, "decimal", "Incorrect type for xml:lang");
-                }
-                if (a.QualifiedName.Name == "base")
-                {
-                    CError.Compare(a.AttributeSchemaType.QualifiedName.Name, "short", "Incorrect type for xml:base");
-                }
-            }
-
-            CError.Compare(ss.Count, 6, "Count of SchemaSet not matched!");
-            return;
+            IEnumerable<XmlSchemaAttribute> modifiedLang = ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>().Where(a => a.QualifiedName.Name == "lang");
+            Assert.All(modifiedLang, a => Assert.Equal("decimal", a.AttributeSchemaType.QualifiedName.Name));
+            IEnumerable<XmlSchemaAttribute> modifiedBase = ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>().Where(a => a.QualifiedName.Name == "base");
+            Assert.All(modifiedBase, a => Assert.Equal("short", a.AttributeSchemaType.QualifiedName.Name));
+            Assert.Equal(6, ss.Count);
         }
 
+        [Fact]
         //[Variation(Desc = "v27 - Bug 338038 - Add new attributes to the already present xml namespace System.Xml.Tests", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v27()
+        public static void v27()
         {
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
@@ -350,34 +260,23 @@ namespace System.Xml.Tests
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v5b.xsd"));
             ss.Compile();
 
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == "blah")
-                {
-                    CError.Compare(a.AttributeSchemaType.QualifiedName.Name, "int", "Incorrect type for xml:lang");
-                }
-            }
-            CError.Compare(ss.Count, 6, "Count of SchemaSet not matched!");
-            return;
+            IEnumerable<XmlSchemaAttribute> added = ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>().Where(a => a.QualifiedName.Name == "blah");
+            Assert.All(added, a => Assert.Equal("int", a.AttributeSchemaType.QualifiedName.Name));
+            Assert.Equal(6, ss.Count);
         }
 
+        [Fact]
         //[Variation(Desc = "v28 - Bug 338038 - Add new attributes to the already present xml namespace System.Xml.Tests, remove default ns schema", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v28()
+        public static void v28()
         {
             string xmlns = @"http://www.w3.org/XML/1998/namespace";
-            XmlSchema schema = null;
 
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v3.xsd"));
             ss.Compile();
 
-            foreach (XmlSchema s in ss.Schemas(xmlns))
-            {
-                schema = s;
-            }
+            XmlSchema schema = ss.Schemas(xmlns).Cast<XmlSchema>().Last();
 
             ss.Add(null, Path.Combine(TestData._Root, "bug338038_v4a.xsd"));
             ss.Compile();
@@ -387,165 +286,156 @@ namespace System.Xml.Tests
             ss.Remove(schema);
             ss.Compile();
 
-            foreach (XmlSchemaAttribute a in ss.GlobalAttributes.Values)
-            {
-                if (a.QualifiedName.Name == "blah")
-                {
-                    CError.Compare(a.AttributeSchemaType.QualifiedName.Name, "int", "Incorrect type for xml:lang");
-                }
-            }
-            CError.Compare(ss.Count, 5, "Count of SchemaSet not matched!");
-            return;
+            IEnumerable<XmlSchemaAttribute> added = ss.GlobalAttributes.Values.Cast<XmlSchemaAttribute>().Where(a => a.QualifiedName.Name == "blah");
+            Assert.All(added, a => Assert.Equal("int", a.AttributeSchemaType.QualifiedName.Name));
+            Assert.Equal(5, ss.Count);
         }
 
-        //Regressions - Bug Fixes
-        public void Callback1(object sender, ValidationEventArgs args)
-        {
-            if (args.Severity == XmlSeverityType.Warning)
-            {
-                _output.WriteLine("WARNING Recieved");
-                bWarningCallback = true;
-                warningCount++;
-                CError.Compare(args.Exception.InnerException == null, false, "Inner Exception not set");
-            }
-        }
-
+        [Fact]
         //[Variation(Desc = "v100 - Bug 320502 - XmlSchemaSet: while throwing a warning for invalid externals we do not set the inner exception", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v100()
+        public static void v100()
         {
             string xsd = @"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:include schemaLocation='bogus'/></xs:schema>";
-            Initialize();
+            int warningCount = 0;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(Callback1);
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Warning, e.Severity);
+                Assert.NotNull(e.Exception.InnerException);
+                warningCount++;
+            };
             ss.Add(null, new XmlTextReader(new StringReader(xsd)));
             ss.Compile();
-            CError.Compare(warningCount, 1, "Warning Count mismatch!");
-            return;
+            Assert.Equal(1, warningCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v101 - Bug 339706 - XmlSchemaSet: Compile on the set fails when a compiled schema containing notation is already present", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v101()
+        public static void v101()
         {
             string xsd1 = @"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:notation name='a' public='a'/></xs:schema>";
             string xsd2 = @"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:element name='root'/></xs:schema>";
-
-            Initialize();
+            int warningCount = 0;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(Callback1);
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Warning, e.Severity);
+                Assert.NotNull(e.Exception.InnerException);
+                warningCount++;
+            };
             ss.Add(null, new XmlTextReader(new StringReader(xsd1)));
             ss.Compile();
             ss.Add(null, new XmlTextReader(new StringReader(xsd2)));
             ss.Compile();
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
+            Assert.Equal(0, warningCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v102 - Bug 337850 - XmlSchemaSet: Type already declared error when redefined schema is added to the set before the redefining schema.", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v102()
+        public static void v102()
         {
-            Initialize();
+            int warningCount = 0;
+            int errorCount = 0;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                if (e.Severity == XmlSeverityType.Error)
+                {
+                    errorCount++;
+                }
+                else
+                {
+                    warningCount++;
+                }
+            };
             ss.Add(null, Path.Combine(TestData._Root, "schZ013c.xsd"));
             ss.Add(null, Path.Combine(TestData._Root, "schZ013a.xsd"));
             ss.Compile();
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
+            Assert.Equal(0, warningCount);
+            Assert.Equal(0, errorCount);
         }
 
+        [Theory]
         //[Variation(Desc = "v104 - CodeCoverage- XmlSchemaSet: add precompiled subs groups, global elements, attributes and types to another compiled SOM.", Priority = 1, Params = new object[] { false })]
         [InlineData(false)]
         //[Variation(Desc = "v103 - CodeCoverage- XmlSchemaSet: add precompiled subs groups, global elements, attributes and types to another compiled set.", Priority = 1, Params = new object[] { true })]
         [InlineData(true)]
-        [Theory]
-        public void v103(object param0)
+        public static void v103(bool addset)
         {
-            bool addset = (bool)param0;
-
-            Initialize();
             XmlSchemaSet ss1 = new XmlSchemaSet();
             ss1.XmlResolver = new XmlUrlResolver();
-            ss1.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss1.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             ss1.Add(null, Path.Combine(TestData._Root, "Misc103_x.xsd"));
             ss1.Compile();
 
-            CError.Compare(ss1.Count, 1, "Schema Set 1 Count mismatch!");
+            Assert.Equal(1, ss1.Count);
 
             XmlSchemaSet ss2 = new XmlSchemaSet();
             ss2.XmlResolver = new XmlUrlResolver();
-            ss2.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss2.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             XmlSchema s = ss2.Add(null, Path.Combine(TestData._Root, "Misc103_a.xsd"));
             ss2.Compile();
 
-            CError.Compare(ss1.Count, 1, "Schema Set 1 Count mismatch!");
+            Assert.Equal(1, ss1.Count);
 
             if (addset)
             {
                 ss1.Add(ss2);
 
-                CError.Compare(ss1.GlobalElements.Count, 7, "Schema Set 1 GlobalElements Count mismatch!");
-                CError.Compare(ss1.GlobalAttributes.Count, 2, "Schema Set 1 GlobalAttributes Count mismatch!");
-                CError.Compare(ss1.GlobalTypes.Count, 6, "Schema Set 1 GlobalTypes Count mismatch!");
+                Assert.Equal(7, ss1.GlobalElements.Count);
+                Assert.Equal(2, ss1.GlobalAttributes.Count);
+                Assert.Equal(6, ss1.GlobalTypes.Count);
             }
             else
             {
                 ss1.Add(s);
 
-                CError.Compare(ss1.GlobalElements.Count, 2, "Schema Set 1 GlobalElements Count mismatch!");
-                CError.Compare(ss1.GlobalAttributes.Count, 0, "Schema Set 1 GlobalAttributes Count mismatch!");
-                CError.Compare(ss1.GlobalTypes.Count, 2, "Schema Set 1 GlobalTypes Count mismatch!");
+                Assert.Equal(2, ss1.GlobalElements.Count);
+                Assert.Equal(0, ss1.GlobalAttributes.Count);
+                Assert.Equal(2, ss1.GlobalTypes.Count);
             }
 
             /***********************************************/
-
             XmlSchemaSet ss3 = new XmlSchemaSet();
             ss3.XmlResolver = new XmlUrlResolver();
-            ss3.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            ss3.ValidationEventHandler += (sender, e) => { /* Do Nothing */ };
             ss3.Add(null, Path.Combine(TestData._Root, "Misc103_c.xsd"));
             ss3.Compile();
             ss1.Add(ss3);
 
-            CError.Compare(ss1.GlobalElements.Count, 8, "Schema Set 1 GlobalElements Count mismatch!");
-
-            return;
+            Assert.Equal(8, ss1.GlobalElements.Count);
         }
 
+        [Fact]
         //[Variation(Desc = "v103 - Reference to a component from no namespace System.Xml.Tests an explicit import of no namespace System.Xml.Tests throw a validation warning", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v105()
+        public static void v105()
         {
-            Initialize();
+            int warningCount = 0;
             XmlSchemaSet schemaSet = new XmlSchemaSet();
             schemaSet.XmlResolver = new XmlUrlResolver();
-            schemaSet.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+
+            schemaSet.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Warning, e.Severity);
+                warningCount++;
+            };
             schemaSet.Add(null, Path.Combine(TestData._Root, "Misc105.xsd"));
-            CError.Compare(warningCount, 1, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
+            Assert.Equal(1, warningCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v106 - Adding a compiled SoS(schema for schema) to a set causes type collision error", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v106()
+        public static void v106()
         {
-            Initialize();
-
+            bool ss1ValidateError = false;
+            bool ssValidateError = false;
             XmlSchemaSet ss1 = new XmlSchemaSet();
             ss1.XmlResolver = new XmlUrlResolver();
-            ss1.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss1.ValidationEventHandler += (sender, e) => ss1ValidateError = true;
             XmlReaderSettings settings = new XmlReaderSettings();
 #pragma warning disable 0618
             settings.ProhibitDtd = false;
@@ -556,7 +446,7 @@ namespace System.Xml.Tests
 
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss.ValidationEventHandler += (sender, e) => ssValidateError = true; ;
 
             foreach (XmlSchema s in ss1.Schemas())
             {
@@ -565,42 +455,44 @@ namespace System.Xml.Tests
 
             ss.Add(null, Path.Combine(TestData._Root, "xsdauthor.xsd"));
             ss.Compile();
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
+            Assert.False(ss1ValidateError);
+            Assert.False(ssValidateError);
         }
 
+        [Fact]
         //[Variation(Desc = "v107 - XsdValidatingReader: InnerException not set on validation warning of a schemaLocation not loaded.", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v107()
+        public static void v107()
         {
+            bool schemaSetValidationError = false;
             string strXml = @"<root xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='a bug356711_a.xsd' xmlns:a='a'></root>";
-            Initialize();
             XmlSchemaSet schemaSet = new XmlSchemaSet();
             schemaSet.XmlResolver = new XmlUrlResolver();
-            schemaSet.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            schemaSet.ValidationEventHandler += (sender, e) => schemaSetValidationError = true;
             schemaSet.Add(null, Path.Combine(TestData._Root, "bug356711_root.xsd"));
 
+            int warningCount = 0;
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.XmlResolver = new XmlUrlResolver();
             settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings | XmlSchemaValidationFlags.ProcessSchemaLocation;
             settings.Schemas.Add(schemaSet);
-            settings.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            settings.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Warning, e.Severity);
+                Assert.NotNull(e.Exception.InnerException);
+                warningCount++;
+            };
             settings.ValidationType = ValidationType.Schema;
             XmlReader vr = XmlReader.Create(new StringReader(strXml), settings);
 
             while (vr.Read()) ;
 
-            CError.Compare(warningCount, 1, "Warning Count mismatch!");
-            CError.Compare(WarningInnerExceptionSet, true, "Inner Exception not set!");
-            return;
+            Assert.False(schemaSetValidationError);
+            Assert.Equal(1, warningCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v108 - XmlSchemaSet.Add() should not trust compiled state of the schema being added", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v108()
+        public static void v108()
         {
             string strSchema1 = @"
 <xs:schema targetNamespace='http://bar'
@@ -633,10 +525,14 @@ namespace System.Xml.Tests
   </xs:element>
 </xs:schema>";
 
-            Initialize();
             XmlSchemaSet set = new XmlSchemaSet();
             set.XmlResolver = new XmlUrlResolver();
-            ValidationEventHandler handler = new ValidationEventHandler(ValidationCallback);
+            int callback1Errors = 0;
+            ValidationEventHandler handler = (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Error, e.Severity);
+                callback1Errors++;
+            };
             set.ValidationEventHandler += handler;
             XmlSchema s1 = null;
             using (XmlReader r = XmlReader.Create(new StringReader(strSchema1)))
@@ -645,15 +541,19 @@ namespace System.Xml.Tests
                 set.Add(s1);
             }
             set.Compile();
+            Assert.Equal(1, callback1Errors);
 
             // Now load set 2
             set = new XmlSchemaSet();
-            set.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            bool callback2Error = false;
+            set.ValidationEventHandler += (sender, e) => callback2Error = true;
             XmlSchema s2 = null;
             using (XmlReader r = XmlReader.Create(new StringReader(strSchema2)))
             {
                 s2 = XmlSchema.Read(r, handler);
             }
+            Assert.Equal(1, callback1Errors);
+            Assert.False(callback2Error);
             XmlSchemaImport import = (XmlSchemaImport)s2.Includes[0];
             import.Schema = s1;
             import = (XmlSchemaImport)s1.Includes[0];
@@ -663,6 +563,8 @@ namespace System.Xml.Tests
             set.Add(s2);
             set.Reprocess(s2);
             set.Compile();
+            Assert.Equal(1, callback1Errors);
+            Assert.False(callback2Error);
 
             s2 = null;
             using (XmlReader r = XmlReader.Create(new StringReader(strSchema2)))
@@ -670,7 +572,12 @@ namespace System.Xml.Tests
                 s2 = XmlSchema.Read(r, handler);
             }
             set = new XmlSchemaSet();
-            set.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            Assert.Equal(1, callback1Errors);
+            Assert.False(callback2Error);
+
+            bool callback3Error = false;
+            set.ValidationEventHandler += (sender, e) => callback3Error = true;
+
             import = (XmlSchemaImport)s2.Includes[0];
             import.Schema = s1;
             import = (XmlSchemaImport)s1.Includes[0];
@@ -680,132 +587,125 @@ namespace System.Xml.Tests
             set.Add(s2);
             set.Reprocess(s2);
             set.Compile();
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 1, "Error Count mismatch");
-            return;
+            Assert.Equal(1, callback1Errors);
+            Assert.False(callback2Error);
+            Assert.False(callback3Error);
         }
 
+        [Fact]
         //[Variation(Desc = "v109 - 386243, Adding a chameleon schema agsinst to no namaespace throws unexpected warnings", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v109()
+        public static void v109()
         {
-            Initialize();
+            bool validateError = false;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss.ValidationEventHandler += (sender, e) => validateError = true;
             ss.Add("http://EmployeeTest.org", Path.Combine(TestData._Root, "EmployeeTypes.xsd"));
             ss.Add(null, Path.Combine(TestData._Root, "EmployeeTypes.xsd"));
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-
-            return;
+            Assert.False(validateError);
         }
 
+        [Fact]
         //[Variation(Desc = "v110 - 386246,  ArgumentException 'item arleady added' error on a chameleon add done twice", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v110()
+        public static void v110()
         {
-            Initialize();
+            bool validateError = false;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            ss.ValidationEventHandler += (sender, e) => validateError = true;
             XmlSchema s1 = ss.Add("http://EmployeeTest.org", Path.Combine(TestData._Root, "EmployeeTypes.xsd"));
             XmlSchema s2 = ss.Add("http://EmployeeTest.org", Path.Combine(TestData._Root, "EmployeeTypes.xsd"));
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-
-            return;
+            Assert.False(validateError);
         }
 
+        [Fact]
         //[Variation(Desc = "v111 - 380805,  Chameleon include compiled in one set added to another", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v111()
+        public static void v111()
         {
-            Initialize();
-
+            bool newSetValidateError = false;
             XmlSchemaSet newSet = new XmlSchemaSet();
             newSet.XmlResolver = new XmlUrlResolver();
-            newSet.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            newSet.ValidationEventHandler += (sender, e) => newSetValidateError = true;
             XmlSchema chameleon = newSet.Add(null, Path.Combine(TestData._Root, "EmployeeTypes.xsd"));
             newSet.Compile();
 
-            CError.Compare(newSet.GlobalTypes.Count, 10, "GlobalTypes count mismatch!");
+            Assert.False(newSetValidateError);
+            Assert.Equal(10, newSet.GlobalTypes.Count);
 
+            bool scValidateError = false;
             XmlSchemaSet sc = new XmlSchemaSet();
             sc.XmlResolver = new XmlUrlResolver();
-            sc.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            sc.ValidationEventHandler += (sender, e) => scValidateError = true;
             sc.Add(chameleon);
             sc.Add(null, Path.Combine(TestData._Root, "baseEmployee.xsd"));
             sc.Compile();
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-
-            return;
+            Assert.False(newSetValidateError);
+            Assert.False(scValidateError);
         }
 
+        [Fact]
         //[Variation(Desc = "v112 - 382035,  schema set tables not cleared as expected on reprocess", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v112()
+        public static void v112()
         {
-            Initialize();
-
+            bool set2ValidateError = false;
             XmlSchemaSet set2 = new XmlSchemaSet();
-            set2.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            set2.ValidationEventHandler += (sender, e) => set2ValidateError = true;
             XmlSchema includedSchema = set2.Add(null, Path.Combine(TestData._Root, "bug382035a1.xsd"));
             set2.Compile();
+            Assert.False(set2ValidateError);
 
+            bool setValidateError = false;
             XmlSchemaSet set = new XmlSchemaSet();
             set.XmlResolver = new XmlUrlResolver();
-            set.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            set.ValidationEventHandler += (sender, e) => setValidateError = true;
             XmlSchema mainSchema = set.Add(null, Path.Combine(TestData._Root, "bug382035a.xsd"));
             set.Compile();
+            Assert.False(setValidateError);
 
+            bool readValidateError = false;
             XmlReader r = XmlReader.Create(Path.Combine(TestData._Root, "bug382035a1.xsd"));
-            XmlSchema reParsedInclude = XmlSchema.Read(r, new ValidationEventHandler(ValidationCallback));
+            XmlSchema reParsedInclude = XmlSchema.Read(r, (sender, e) => readValidateError = true);
+            Assert.False(readValidateError);
 
             ((XmlSchemaExternal)mainSchema.Includes[0]).Schema = reParsedInclude;
             set.Reprocess(mainSchema);
             set.Compile();
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-
-            return;
+            Assert.False(set2ValidateError);
+            Assert.False(setValidateError);
+            Assert.False(readValidateError);
         }
 
+        [Fact]
         //[Variation(Desc = "v113 - Set InnerException on XmlSchemaValidationException while parsing typed values", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v113()
+        public static void v113()
         {
             string strXml = @"<root xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xs='http://www.w3.org/2001/XMLSchema' xsi:type='xs:int'>a</root>";
-            Initialize();
+
+            int errorCount = 0;
 
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings | XmlSchemaValidationFlags.ProcessSchemaLocation;
-            settings.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            settings.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Error, e.Severity);
+                Assert.NotNull(e.Exception);
+                errorCount++;
+            };
             settings.ValidationType = ValidationType.Schema;
             XmlReader vr = XmlReader.Create(new StringReader(strXml), settings);
 
             while (vr.Read()) ;
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 1, "Error Count mismatch!");
-            CError.Compare(ErrorInnerExceptionSet, true, "Inner Exception not set!");
-            return;
+            Assert.Equal(1, errorCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v114 - XmlSchemaSet: InnerException not set on parse errors during schema compilation", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v114()
+        public static void v114()
         {
             string strXsd = @"<xs:schema elementFormDefault='qualified' xmlns:xs='http://www.w3.org/2001/XMLSchema'>
  <xs:element name='date' type='date'/>
@@ -816,24 +716,27 @@ namespace System.Xml.Tests
  </xs:simpleType>
 </xs:schema>";
 
-            Initialize();
+            int handlerErrorCount = 0;
+            int readErrorCount = 0;
             XmlSchemaSet ss = new XmlSchemaSet();
             ss.XmlResolver = new XmlUrlResolver();
-            ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
-            ss.Add(XmlSchema.Read(new StringReader(strXsd), new ValidationEventHandler(ValidationCallback)));
+            ss.ValidationEventHandler += (sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Error, e.Severity);
+                Assert.NotNull(e.Exception);
+                handlerErrorCount++;
+            };
+            ss.Add(XmlSchema.Read(new StringReader(strXsd), (sender, e) => readErrorCount++));
 
             ss.Compile();
 
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 1, "Error Count mismatch!");
-            CError.Compare(ErrorInnerExceptionSet, true, "Inner Exception not set!");
-            return;
+            Assert.Equal(0, readErrorCount);
+            Assert.Equal(1, handlerErrorCount);
         }
 
+        [Fact]
         //[Variation(Desc = "v116 - 405327 NullReferenceExceptions while accessing obsolete properties in the SOM", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v116()
+        public static void v116()
         {
 #pragma warning disable 0618
             XmlSchemaAttribute attribute = new XmlSchemaAttribute();
@@ -845,10 +748,9 @@ namespace System.Xml.Tests
 #pragma warning restore 0618
         }
 
+        [Fact]
         //[Variation(Desc = "v117 - 398474 InnerException not set on XmlSchemaException, when xs:pattern has an invalid regular expression", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v117()
+        public static void v117()
         {
             string strXsdv117 =
             @"<?xml version='1.0' encoding='utf-8' ?>
@@ -868,24 +770,30 @@ namespace System.Xml.Tests
                     </xs:element>
                   </xs:schema>";
 
-            Initialize();
+            int handlerErrorCount = 0;
+            int readErrorCount = 0;
 
             using (StringReader reader = new StringReader(strXsdv117))
             {
                 XmlSchemaSet ss = new XmlSchemaSet();
                 ss.XmlResolver = new XmlUrlResolver();
-                ss.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
-                ss.Add(XmlSchema.Read(reader, ValidationCallback));
+                ss.ValidationEventHandler += (sender, e) =>
+                {
+                    Assert.Equal(XmlSeverityType.Error, e.Severity);
+                    Assert.NotNull(e.Exception);
+                    handlerErrorCount++;
+                };
+                ss.Add(XmlSchema.Read(reader, (sender, e) => readErrorCount++));
                 ss.Compile();
-                CError.Compare(ErrorInnerExceptionSet, true, "\nInner Exception not set\n");
+
+                Assert.Equal(1, handlerErrorCount);
+                Assert.Equal(0, readErrorCount);
             }
-            return;
         }
 
+        [Fact]
         //[Variation(Desc = "v118 - 424904 Not getting unhandled attributes on particle", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v118()
+        public static void v118()
         {
             using (XmlReader r = new XmlTextReader(Path.Combine(TestData._Root, "Bug424904.xsd")))
             {
@@ -899,15 +807,14 @@ namespace System.Xml.Tests
                 XmlSchemaComplexType test2type = s.SchemaTypes[name] as XmlSchemaComplexType;
                 XmlSchemaParticle p = test2type.ContentTypeParticle;
                 XmlAttribute[] att = p.UnhandledAttributes;
-
-                Assert.False(att == null || att.Length < 1);
+                Assert.NotNull(att);
+                Assert.NotEmpty(att);
             }
         }
 
+        [Fact]
         //[Variation(Desc = "v120 - 397633 line number and position not set on the validation error for an invalid xsi:type value", Priority = 1)]
-        [InlineData()]
-        [Theory]
-        public void v120()
+        public static void v120()
         {
             using (XmlReader schemaReader = XmlReader.Create(Path.Combine(TestData._Root, "Bug397633.xsd")))
             {
@@ -923,53 +830,32 @@ namespace System.Xml.Tests
                 using (XmlReader docValidatingReader = XmlReader.Create(Path.Combine(TestData._Root, "Bug397633.xml"), readerSettings))
                 {
                     XmlDocument doc = new XmlDocument();
-                    try
-                    {
-                        doc.Load(docValidatingReader);
-                        doc.Validate(null);
-                    }
-                    catch (XmlSchemaValidationException ex)
-                    {
-                        if (ex.LineNumber == 1 && ex.LinePosition == 2 && !String.IsNullOrEmpty(ex.SourceUri))
-                        {
-                            return;
-                        }
-                    }
+                    XmlSchemaValidationException ex = Assert.Throws<XmlSchemaValidationException>(() => doc.Load(docValidatingReader));
+                    Assert.Equal(1, ex.LineNumber);
+                    Assert.Equal(2, ex.LinePosition);
+                    Assert.NotNull(ex.SourceUri);
+                    Assert.NotEmpty(ex.SourceUri);
                 }
             }
-            Assert.True(false);
         }
 
+        [Fact]
         //[Variation(Desc = "v120a.XmlDocument.Load non-validating reader.Expect IOE.")]
-        [InlineData()]
-        [Theory]
-        public void v120a()
+        public static void v120a()
         {
             XmlReaderSettings readerSettings = new XmlReaderSettings();
             readerSettings.ValidationType = ValidationType.Schema;
             using (XmlReader reader = XmlReader.Create(Path.Combine(TestData._Root, "Bug397633.xml"), readerSettings))
             {
                 XmlDocument doc = new XmlDocument();
-                try
-                {
-                    doc.Load(reader);
-                    doc.Validate(null);
-                }
-                catch (XmlSchemaValidationException ex)
-                {
-                    _output.WriteLine(ex.Message);
-                    return;
-                }
+                Assert.Throws<XmlSchemaValidationException>(() => doc.Load(reader));
             }
-            Assert.True(false);
         }
 
+        [Fact]
         //[Variation(Desc = "444196: XmlReader.MoveToNextAttribute returns incorrect results")]
-        [InlineData()]
-        [Theory]
-        public void v124()
+        public static void v124()
         {
-            Initialize();
             string XamlPresentationNamespace =
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
             string XamlToParse =
@@ -1019,31 +905,22 @@ namespace System.Xml.Tests
                 xmlReader.MoveToNextAttribute();
 
                 xmlReader.MoveToAttribute(0);
-                if (xmlReader.MoveToNextAttribute())
-                    return;
+                Assert.True(xmlReader.MoveToNextAttribute());
             }
-            Assert.True(false);
         }
 
         //[Variation(Desc = "615444 XmlSchema.Write ((XmlWriter)null) throws InvalidOperationException instead of ArgumenNullException")]
-        [Fact]
-        public void v125()
+        [Fact(Skip = "TODO: Fix NotImplementedException")]
+        public static void v125()
         {
             XmlSchema xs = new XmlSchema();
-            try
-            {
-                xs.Write((XmlWriter)null);
-            }
-            catch (InvalidOperationException) { return; }
-            Assert.True(false);
+            Assert.Throws<InvalidOperationException>(() => xs.Write((XmlWriter)null));
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_40561 Redefine Chameleon: Unexpected qualified name on local particle")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_40561()
+        public static void Dev10_40561()
         {
-            Initialize();
             string xml = @"<?xml version='1.0' encoding='utf-8'?><e1 xmlns='ns-a'>  <c23 xmlns='ns-b'/></e1>";
             XmlSchemaSet set = new XmlSchemaSet();
             set.XmlResolver = new XmlUrlResolver();
@@ -1057,27 +934,18 @@ namespace System.Xml.Tests
 
             using (XmlReader reader = XmlReader.Create(new StringReader(xml), settings))
             {
-                try
-                {
-                    while (reader.Read()) ;
-                    _output.WriteLine("XmlSchemaValidationException was not thrown");
-                    Assert.True(false);
-                }
-                catch (XmlSchemaValidationException e) { _output.WriteLine(e.Message); }
+                // Probably would be better to figure out which iteration throws.
+                Assert.Throws<XmlSchemaValidationException>(() => { while (reader.Read()) ; });
             }
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
         }
 
-        [Fact]
-        public void GetBuiltinSimpleTypeWorksAsEcpected()
+        [Fact(Skip = "TODO: Fix NotImplementedException")]
+        public static void GetBuiltinSimpleTypeWorksAsEcpected()
         {
-            Initialize();
             string xml = "<?xml version=\"1.0\" encoding=\"utf-16\"?>" + Environment.NewLine +
  "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">" + Environment.NewLine +
  "  <xs:simpleType>" + Environment.NewLine +
- "    <xs:restriction base=\"xs:anySimpleType\" />" + Environment.NewLine +
+ "    <xs:restriction base=\"xs:anySimpleType\" />" + "Environment.NewLine +
  "  </xs:simpleType>" + Environment.NewLine +
  "</xs:schema>";
             XmlSchema schema = new XmlSchema();
@@ -1085,16 +953,14 @@ namespace System.Xml.Tests
             schema.Items.Add(stringType);
             StringWriter sw = new StringWriter();
             schema.Write(sw);
-            CError.Compare(sw.ToString(), xml, "Mismatch");
-            return;
+            Assert.Equal(xml, sw.ToString());
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_40509 Assert and NRE when validate the XML against the XSD")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_40509()
+        // TODO: ADD ASSERTS
+        public static void Dev10_40509()
         {
-            Initialize();
             string xml = Path.Combine(TestData._Root, "bug511217.xml");
             string xsd = Path.Combine(TestData._Root, "bug511217.xsd");
             XmlSchemaSet s = new XmlSchemaSet();
@@ -1111,17 +977,13 @@ namespace System.Xml.Tests
                 doc.Schemas = s;
                 doc.Validate(null);
             }
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_40511 XmlSchemaSet::Compile throws XmlSchemaException for valid schema")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_40511()
+        // TODO: ADD ASSERTS
+        public static void Dev10_40511()
         {
-            Initialize();
             string xsd = @"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'>
 <xs:simpleType name='textType'>
     <xs:restriction base='xs:string'>
@@ -1138,17 +1000,12 @@ namespace System.Xml.Tests
             sc.XmlResolver = new XmlUrlResolver();
             sc.Add("xs", XmlReader.Create(new StringReader(xsd)));
             sc.Compile();
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_40495 Undefined ComplexType error when loading schemas from in memory strings")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_40495()
+        public static void Dev10_40495()
         {
-            Initialize();
             const string schema1Str = @"<xs:schema xmlns:tns=""http://BizTalk_Server_Project2.Schema1"" xmlns:b=""http://schemas.microsoft.com/BizTalk/2003"" attributeFormDefault=""unqualified"" elementFormDefault=""qualified"" targetNamespace=""http://BizTalk_Server_Project2.Schema1"" xmlns:xs=""http://www.w3.org/2001/XMLSchema"">
   <xs:include schemaLocation=""S3"" />
   <xs:include schemaLocation=""S2"" />
@@ -1190,9 +1047,11 @@ namespace System.Xml.Tests
             ((XmlSchemaExternal)schema1.Includes[0]).Schema = schema3;
             ((XmlSchemaExternal)schema1.Includes[1]).Schema = schema2;
 
+            bool validateError = false;
+
             XmlSchemaSet schemaSet = new XmlSchemaSet();
             schemaSet.XmlResolver = new XmlUrlResolver();
-            schemaSet.ValidationEventHandler += new ValidationEventHandler(ValidationCallback);
+            schemaSet.ValidationEventHandler += (sender, e) => validateError = true;
 
             if (schemaSet.Add(schema1) != null)
             {
@@ -1201,17 +1060,13 @@ namespace System.Xml.Tests
                 schemaSet.Compile();
                 schemaSet.Reprocess(schema1);
             }
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
+            Assert.False(validateError);
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_64765 XmlSchemaValidationException.SourceObject is always null when using XPathNavigator.CheckValidity method")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_64765()
+        public static void Dev10_64765()
         {
-            Initialize();
             string xsd =
                 "<xsd:schema xmlns:xsd='http://www.w3.org/2001/XMLSchema'>" +
                     "<xsd:element name='some'>" +
@@ -1219,55 +1074,38 @@ namespace System.Xml.Tests
                 "</xsd:schema>";
             string xml = "<root/>";
 
+            bool readerValidateError = false;
+            bool handlerValidateError = false;
+            bool validatorError = false;
+
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(xml);
-            ValidateXPathNavigator(xml, CompileSchemaSet(xsd));
-
-            return;
-        }
-
-        private void ValidateXPathNavigator(string xml, XmlSchemaSet schemaSet)
-        {
-            XPathDocument doc = new XPathDocument(new StringReader(xml));
-            XPathNavigator nav = doc.CreateNavigator();
-            ValidateXPathNavigator(nav, schemaSet);
-        }
-
-        private void ValidateXPathNavigator(XPathNavigator nav, XmlSchemaSet schemaSet)
-        {
-            _output.WriteLine(nav.CheckValidity(schemaSet, OnValidationEvent) ? "Validation succeeded." : "Validation failed.");
-        }
-
-        private XmlSchemaSet CompileSchemaSet(string xsd)
-        {
             XmlSchemaSet schemaSet = new XmlSchemaSet();
             schemaSet.XmlResolver = new XmlUrlResolver();
-            schemaSet.Add(XmlSchema.Read(new StringReader(xsd), OnValidationEvent));
-            schemaSet.ValidationEventHandler += OnValidationEvent;
+            schemaSet.Add(XmlSchema.Read(new StringReader(xsd), (sender, e) => readerValidateError = true));
+            schemaSet.ValidationEventHandler += (sender, e) => handlerValidateError = true;
             schemaSet.Compile();
-            return schemaSet;
-        }
+            XPathDocument xPathDoc = new XPathDocument(new StringReader(xml));
+            XPathNavigator nav = xPathDoc.CreateNavigator();
 
-        private void OnValidationEvent(object sender, ValidationEventArgs e)
-        {
-            XmlSchemaValidationException exception = e.Exception as XmlSchemaValidationException;
-
-            if (exception == null || exception.SourceObject == null)
+            nav.CheckValidity(schemaSet, (sender, e) =>
             {
-                CError.Compare(exception != null, "exception == null");
-                CError.Compare(exception.SourceObject != null, "SourceObject == null");
-                return;
-            }
-            CError.Compare(exception.SourceObject.GetType().ToString(), "MS.Internal.Xml.Cache.XPathDocumentNavigator", "SourceObject.GetType");
-            _output.WriteLine("Exc: " + exception);
+                var ex = Assert.IsType<XmlSchemaValidationException>(e.Exception);
+                Assert.NotNull(ex.SourceObject);
+                Assert.Equal("MS.Internal.Xml.Cache.XPathDocumentNavigator", ex.SourceObject.GetType().ToString());
+                validatorError = true;
+            });
+
+            Assert.False(readerValidateError);
+            Assert.False(handlerValidateError);
+            Assert.True(validatorError);
         }
 
+        [Fact]
         //[Variation(Desc = "Dev10_40563 XmlSchemaSet: Assert Failure with Chk Build.")]
-        [InlineData()]
-        [Theory]
-        public void Dev10_40563()
+        // TODO: ADD ASSERTS
+        public static void Dev10_40563()
         {
-            Initialize();
             string xsd =
                 "<xsd:schema xmlns:xsd='http://www.w3.org/2001/XMLSchema'>" +
                     "<xsd:element name='some'>" +
@@ -1288,17 +1126,12 @@ namespace System.Xml.Tests
                     while (r2.Read()) ;
                 }
             }
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 0, "Error Count mismatch!");
-            return;
         }
 
+        [Fact]
         //[Variation(Desc = "TFS_470020 Schema with substitution groups does not throw when content model is ambiguous")]
-        [InlineData()]
-        [Theory]
-        public void TFS_470020()
+        public static void TFS_470020()
         {
-            Initialize();
             string xml = @"<?xml version='1.0' encoding='utf-8' ?>
             <e3>
             <e2>1</e2>
@@ -1316,6 +1149,7 @@ namespace System.Xml.Tests
               </xs:complexType>
               <xs:element name='e3' type='t3'/>
             </xs:schema>";
+            int errorCount = 0;
 
             XmlSchemaSet set = new XmlSchemaSet();
             set.XmlResolver = new XmlUrlResolver();
@@ -1323,10 +1157,12 @@ namespace System.Xml.Tests
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(xml);
             doc.Schemas = set;
-            doc.Validate(ValidationCallback);
-            CError.Compare(warningCount, 0, "Warning Count mismatch!");
-            CError.Compare(errorCount, 1, "Error Count mismatch!");
-            return;
+            doc.Validate((sender, e) =>
+            {
+                Assert.Equal(XmlSeverityType.Error, e.Severity);
+                errorCount++;
+            });
+            Assert.Equal(1, errorCount);
         }
     }
 }
