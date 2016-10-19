@@ -2,9 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
 using System.Common.Tests;
-
+using System.Text;
 using Xunit;
 
 namespace System.PrivateUri.Tests
@@ -485,14 +484,8 @@ namespace System.PrivateUri.Tests
             Uri u1 = new Uri(validUriStart + bigString1);
             Assert.True(u1.ToString().Length > bigString1.Length);
 
-            try
-            {
-                string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
-                Uri u = new Uri(bigString2);
-                Assert.False(true, "Expected UriFormatException: Uri too large");
-            }
-            catch (FormatException)
-            { }
+            string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
+            Assert.Throws<UriFormatException>(() => new Uri(bigString2));
         }
 
         [Fact]
@@ -501,14 +494,8 @@ namespace System.PrivateUri.Tests
             string bigString1 = GetUnicodeString(0, maxUriLength, 1);
             Assert.True(Uri.EscapeDataString(bigString1).Length > bigString1.Length);
 
-            try
-            {
-                string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
-                Uri.EscapeDataString(bigString2);
-                Assert.False(true, "Expected UriFormatException: Uri too large");
-            }
-            catch (FormatException)
-            { }
+            string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
+            Assert.Throws<UriFormatException>(() => Uri.EscapeDataString(bigString2));
         }
 
         [Fact]
@@ -517,14 +504,8 @@ namespace System.PrivateUri.Tests
             string bigString1 = GetUnicodeString(0, maxUriLength, 1);
             Assert.True(Uri.EscapeUriString(bigString1).Length > bigString1.Length);
 
-            try
-            {
-                string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
-                Uri.EscapeUriString(bigString2);
-                Assert.False(true, "Expected UriFormatException: Uri too large");
-            }
-            catch (FormatException)
-            { }
+            string bigString2 = GetUnicodeString(0, maxUriLength + 1, 1);
+            Assert.Throws<UriFormatException>(() => Uri.EscapeUriString(bigString2));
         }
 
         [Theory]
