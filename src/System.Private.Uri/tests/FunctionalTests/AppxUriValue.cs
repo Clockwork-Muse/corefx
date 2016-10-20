@@ -6,7 +6,7 @@ using Xunit;
 
 namespace System.PrivateUri.Tests
 {
-    public class AppxUriValues
+    public static class AppxUriValues
     {
         [Fact]
         public static void SupportStringsOfForm_MsApp()
