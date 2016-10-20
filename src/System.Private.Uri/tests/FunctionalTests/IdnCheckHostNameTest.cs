@@ -2,53 +2,34 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Net;
+using System.Collections.Generic;
 using System.Common.Tests;
-
+using System.Net;
 using Xunit;
 
 namespace System.PrivateUri.Tests
 {
-    public class IdnCheckHostNameTest
+    public static class IdnCheckHostNameTest
     {
-        [Fact]
-        public void IdnCheckHostName_Empty_Unknown()
+        public static IEnumerable<object[]> IdnCheckHostName_Data()
         {
-            Assert.Equal(UriHostNameType.Unknown, Uri.CheckHostName(string.Empty));
+            yield return new object[] { UriHostNameType.Unknown, string.Empty };
+            yield return new object[] { UriHostNameType.Dns, "Host" };
+            yield return new object[] { UriHostNameType.Dns, "Host.corp.micorosoft.com" };
+            yield return new object[] { UriHostNameType.IPv4, IPAddress.Loopback.ToString() };
+            yield return new object[] { UriHostNameType.IPv6, IPAddress.IPv6Loopback.ToString() };
+            yield return new object[] { UriHostNameType.IPv6, "[" + IPAddress.IPv6Loopback.ToString() + "]" };
+        }
+
+        [Theory]
+        [MemberData(nameof(IdnCheckHostName_Data))]
+        public static void IdnCheckHostName(UriHostNameType type, string hostName)
+        {
+            Assert.Equal(type, Uri.CheckHostName(hostName));
         }
 
         [Fact]
-        public void IdnCheckHostName_FlatDns_Dns()
-        {
-            Assert.Equal(UriHostNameType.Dns, Uri.CheckHostName("Host"));
-        }
-
-        [Fact]
-        public void IdnCheckHostName_FqdnDns_Dns()
-        {
-            Assert.Equal(UriHostNameType.Dns, Uri.CheckHostName("Host.corp.micorosoft.com"));
-        }
-
-        [Fact]
-        public void IdnCheckHostName_IPv4_IPv4()
-        {
-            Assert.Equal(UriHostNameType.IPv4, Uri.CheckHostName(IPAddress.Loopback.ToString()));
-        }
-
-        [Fact]
-        public void IdnCheckHostName_IPv6WithoutBrackets_IPv6()
-        {
-            Assert.Equal(UriHostNameType.IPv6, Uri.CheckHostName(IPAddress.IPv6Loopback.ToString()));
-        }
-
-        [Fact]
-        public void IdnCheckHostName_IPv6WithBrackets_IPv6()
-        {
-            Assert.Equal(UriHostNameType.IPv6, Uri.CheckHostName("[" + IPAddress.IPv6Loopback.ToString() + "]"));
-        }
-
-        [Fact]
-        public void IdnCheckHostName_UnicodeIdnOffIriOn_Dns()
+        public static void IdnCheckHostName_UnicodeIdnOffIriOn_Dns()
         {
             using (var helper = new ThreadCultureChange())
             {
