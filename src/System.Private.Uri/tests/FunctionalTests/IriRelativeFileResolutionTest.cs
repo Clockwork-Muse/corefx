@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
@@ -31,7 +32,7 @@ namespace System.PrivateUri.Tests
             Assert.True((errorCount == 0), testResults);
         }
 
-        [Fact]
+        //[Fact]
         public void IriRelativeResolution_CompareImplcitAndExplicitFileWithReservedChar_AllPropertiesTheSame()
         {
             string nonUnicodeImplicitTestFile = s_isWindowsSystem ? @"c:\path\path3\test.txt%25%" : "/path/path3/test.txt%25%";
@@ -44,7 +45,7 @@ namespace System.PrivateUri.Tests
             // AbsolutePath, AbsoluteUri, LocalPath, PathAndQuery
         }
 
-        [Fact]
+        //[Fact]
         public void IriRelativeResolution_CompareImplcitAndExplicitFileWithUnicodeIriOn_AllPropertiesTheSame()
         {
             string unicodeImplicitTestFile = s_isWindowsSystem ? @"c:\path\\u30AF\path3\\u30EB\u30DE.text" : "/path//u30AF/path3//u30EB/u30DE.text";
@@ -56,7 +57,7 @@ namespace System.PrivateUri.Tests
             Assert.True((errorCount == 0), testResults);
         }
 
-        [Fact]
+        //[Fact]
         public void IriRelativeResolution_CompareImplcitAndExplicitFileWithUnicodeAndReservedCharIriOn_AllPropertiesTheSame()
         {
             string unicodeImplicitTestFile = s_isWindowsSystem ? @"c:\path\\u30AF\path3\\u30EB\u30DE.text%25%" : "/path//u30AF/path3//u30EB/u30DE.text%25%";
@@ -69,7 +70,7 @@ namespace System.PrivateUri.Tests
             // AbsolutePath, AbsoluteUri, LocalPath, PathAndQuery
         }
 
-        [Fact]
+        //[Fact]
         public void IriRelativeResolution_CompareImplcitAndExplicitUncWithNoUnicode_AllPropertiesTheSame()
         {
             string nonUnicodeImplicitTestUnc = @"\\c\path\path3\test.txt";
@@ -96,7 +97,7 @@ namespace System.PrivateUri.Tests
             Assert.True(IsOriginalString(testResults), testResults);
         }
 
-        [Fact]
+        //[Fact]
         public void IriRelativeResolution_CompareImplcitAndExplicitUncWithUnicodeIriOn_AllPropertiesTheSame()
         {
             string unicodeImplicitTestUnc = @"\\c\path\\u30AF\path3\\u30EB\u30DE.text";
@@ -107,6 +108,63 @@ namespace System.PrivateUri.Tests
                 nonUnicodeImplicitUncBase, out testResults);
             Assert.True((errorCount == 1), testResults);
             Assert.True(IsOriginalString(testResults), testResults);
+        }
+
+        public static IEnumerable<object[]> RelatavizeRestoreCompareImplicitVsExplicitFiles_Data()
+        {
+            Dictionary<string, Action<string, string>> noExceptions = new Dictionary<string, Action<string, string>>();
+
+            yield return new object[] { @"c:\path\path3\test.txt", @"c:\path\file.txt", noExceptions };
+            // AbsolutePath, AbsoluteUri, LocalPath, PathAndQuery
+            yield return new object[] { @"c:\path\path3\test.txt%25%", @"c:\path\file.txt", noExceptions };
+            yield return new object[] { @"c:\path\\u30AF\path3\\u30EB\u30DE.text", @"c:\path\file.txt", noExceptions };
+            // AbsolutePath, AbsoluteUri, LocalPath, PathAndQuery
+            yield return new object[] { @"c:\path\\u30AF\path3\\u30EB\u30DE.text%25%", @"c:\path\file.txt", noExceptions };
+            // OriginalString
+            yield return new object[] { @"\\c\path\path3\test.txt", @"c:\path\file.txt", noExceptions };
+            // OriginalString
+            yield return new object[] { @"//c/path/path3/test.txt", @"//c/path/file.txt", noExceptions };
+            yield return new object[] { @"\\c\path\\u30AF\path3\\u30EB\u30DE.text", @"\\c\path\file.txt",
+                new Dictionary<string, Action<string, string>> { { "OriginalString", (a, b) => Assert.Equal("a" + a, b) } } };
+        }
+
+        [Theory]
+        [MemberData(nameof(RelatavizeRestoreCompareImplicitVsExplicitFiles_Data))]
+        public static void RelatavizeRestoreCompareImplicitVsExplicitFiles(string original,
+            string baseString, IDictionary<string, Action<string, string>> exceptions)
+        {
+            Uri implicitTestUri = new Uri(original);
+            Uri implicitBaseUri = new Uri(baseString);
+            Uri explicitBaseUri = new Uri("file:///" + baseString);
+
+            Uri rel = implicitBaseUri.MakeRelativeUri(implicitTestUri);
+            Uri implicitResultUri = new Uri(implicitBaseUri, rel);
+            Uri explicitResultUri = new Uri(explicitBaseUri, rel);
+
+            Type uriType = typeof(Uri);
+            PropertyInfo[] infoList = uriType.GetProperties();
+            Assert.All(infoList, info =>
+            {
+                string implicitValue = info.GetValue(implicitResultUri).ToString();
+                string explicitValue = info.GetValue(explicitResultUri).ToString();
+
+                if (info.Name == "OriginalString")
+                {
+                    Assert.Equal(original, implicitValue);
+                    Assert.Equal("file:///" + baseString, explicitValue);
+                }
+                else if (exceptions.ContainsKey(info.Name))
+                {
+                    // There's something different with this property, use a different test.
+                    exceptions[info.Name](implicitValue, explicitValue);
+                }
+                else
+                {
+                    Assert.Equal(explicitValue, implicitValue);
+                }
+            });
+
+            Assert.Equal(explicitResultUri.ToString(), implicitResultUri.ToString());
         }
 
         public static int RelatavizeRestoreCompareImplicitVsExplicitFiles(string original,
