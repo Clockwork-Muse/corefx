@@ -91,6 +91,41 @@ namespace System.Numerics.Tests
             }
             return data.ToArray();
         }
+
+        public static byte[] Abs(this byte[] value)
+        {
+            if (value[value.Length - 1] >> 7 == 1)
+            {
+                return Negate(value);
+            }
+            return value;
+        }
+
+        public static byte[] Negate(this byte[] value)
+        {
+            bool negative = value[value.Length - 1] >> 7 == 1;
+            byte[] bNew = new byte[value.Length];
+
+            bool carry = false;
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                int b = (value[i] ^ 0xff) + (i == 0 || carry ? 1 : 0);
+                if (b > byte.MaxValue)
+                {
+                    b -= byte.MaxValue + 1;
+                    carry = true;
+                }
+                bNew[i] = (byte)b;
+            }
+
+            if ((negative && bNew[bNew.Length - 1] >> 7 == 1) || (!negative && bNew[bNew.Length - 1] >> 7 == 0))
+            {
+                Array.Resize(ref bNew, bNew.Length + 1);
+                bNew[bNew.Length - 1] = (byte)(negative ? 0x00 : 0xff);
+            }
+            return bNew;
+        }
     }
 
     public static class MyBigIntImp

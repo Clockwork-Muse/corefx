@@ -2,97 +2,57 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Numerics.Tests
 {
     public static class AbsTests
     {
-        private static int s_samples = 10;
-        private static Random s_random = new Random(100);
+        private const int s_samples = 10;
 
-        [Fact]
-        public static void RunAbsoluteValueTests()
+        public static IEnumerable<object[]> Abs_Data()
         {
-            byte[] byteArray = new byte[0];
+            Random random = new Random(100);
 
-            // AbsoluteValue Method - Large BigIntegers
+            yield return new object[] { new BigInteger(0), new BigInteger(0) };
+            yield return new object[] { new BigInteger(-1), new BigInteger(1) };
+            yield return new object[] { new BigInteger(1), new BigInteger(1) };
+            yield return new object[] { new BigInteger(int.MinValue), new BigInteger(int.MaxValue + 1m) };
+            yield return new object[] { new BigInteger(int.MinValue - 1m), new BigInteger(int.MaxValue + 2m) };
+            yield return new object[] { new BigInteger(int.MinValue + 1m), new BigInteger(int.MaxValue) };
+            yield return new object[] { new BigInteger(int.MaxValue), new BigInteger(int.MaxValue) };
+            yield return new object[] { new BigInteger(int.MaxValue - 1m), new BigInteger(int.MaxValue - 1m) };
+            yield return new object[] { new BigInteger(int.MaxValue + 1m), new BigInteger(int.MaxValue + 1m) };
+            yield return new object[] { new BigInteger(long.MinValue), new BigInteger(long.MaxValue + 1m) };
+            yield return new object[] { new BigInteger(long.MinValue - 1m), new BigInteger(long.MaxValue + 2m) };
+            yield return new object[] { new BigInteger(long.MinValue + 1m), new BigInteger(long.MaxValue) };
+            yield return new object[] { new BigInteger(long.MaxValue), new BigInteger(long.MaxValue) };
+            yield return new object[] { new BigInteger(long.MaxValue - 1m), new BigInteger(long.MaxValue - 1m) };
+            yield return new object[] { new BigInteger(long.MaxValue + 1m), new BigInteger(long.MaxValue + 1m) };
+
+            // Large BigIntegers
             for (int i = 0; i < s_samples; i++)
             {
-                byteArray = GetRandomByteArray(s_random);
-                VerifyAbsoluteValueString(Print(byteArray) + "uAbs");
+                byte[] buffer = new byte[random.Next(1, 1024)];
+                random.NextBytes(buffer);
+                yield return new object[] { new BigInteger(buffer), new BigInteger(buffer.Abs()) };
             }
 
-            // AbsoluteValue Method - Small BigIntegers
+            // Small BigIntegers
             for (int i = 0; i < s_samples; i++)
             {
-                byteArray = MyBigIntImp.GetRandomByteArray(s_random, 2);
-                VerifyAbsoluteValueString(Print(byteArray) + "uAbs");
-            }
-
-            // AbsoluteValue Method - zero
-            VerifyAbsoluteValueString("0 uAbs");
-
-            // AbsoluteValue Method - -1
-            VerifyAbsoluteValueString("-1 uAbs");
-
-            // AbsoluteValue Method - 1
-            VerifyAbsoluteValueString("1 uAbs");
-
-            // AbsoluteValue Method - Int32.MinValue
-            VerifyAbsoluteValueString(Int32.MinValue.ToString() + " uAbs");
-
-            // AbsoluteValue Method - Int32.MinValue-1
-            VerifyAbsoluteValueString(Int32.MinValue.ToString() + " -1 b+ uAbs");
-
-            // AbsoluteValue Method - Int32.MinValue+1
-            VerifyAbsoluteValueString(Int32.MinValue.ToString() + " 1 b+ uAbs");
-
-            // AbsoluteValue Method - Int32.MaxValue
-            VerifyAbsoluteValueString(Int32.MaxValue.ToString() + " uAbs");
-
-            // AbsoluteValue Method - Int32.MaxValue-1
-            VerifyAbsoluteValueString(Int32.MaxValue.ToString() + " -1 b+ uAbs");
-
-            // AbsoluteValue Method - Int32.MaxValue+1
-            VerifyAbsoluteValueString(Int32.MaxValue.ToString() + " 1 b+ uAbs");
-
-            // AbsoluteValue Method - Int64.MinValue
-            VerifyAbsoluteValueString(Int64.MinValue.ToString() + " uAbs");
-
-            // AbsoluteValue Method - Int64.MinValue-1
-            VerifyAbsoluteValueString(Int64.MinValue.ToString() + " -1 b+ uAbs");
-
-            // AbsoluteValue Method - Int64.MinValue+1
-            VerifyAbsoluteValueString(Int64.MinValue.ToString() + " 1 b+ uAbs");
-
-            // AbsoluteValue Method - Int64.MaxValue
-            VerifyAbsoluteValueString(Int64.MaxValue.ToString() + " uAbs");
-
-            // AbsoluteValue Method - Int64.MaxValue-1
-            VerifyAbsoluteValueString(Int64.MaxValue.ToString() + " -1 b+ uAbs");
-
-            // AbsoluteValue Method - Int64.MaxValue+1
-            VerifyAbsoluteValueString(Int64.MaxValue.ToString() + " 1 b+ uAbs");
-        }
-
-        private static void VerifyAbsoluteValueString(string opstring)
-        {
-            StackCalc sc = new StackCalc(opstring);
-            while (sc.DoNextOperation())
-            {
-                Assert.Equal(sc.snCalc.Peek().ToString(), sc.myCalc.Peek().ToString());
+                byte[] buffer = new byte[random.Next(1, 2)];
+                random.NextBytes(buffer);
+                yield return new object[] { new BigInteger(buffer), new BigInteger(buffer.Abs()) };
             }
         }
 
-        private static Byte[] GetRandomByteArray(Random random)
+        [Theory]
+        [MemberData(nameof(Abs_Data))]
+        public static void AbsTest(BigInteger original, BigInteger expected)
         {
-            return MyBigIntImp.GetRandomByteArray(random, random.Next(0, 1024));
-        }
-
-        private static String Print(byte[] bytes)
-        {
-            return MyBigIntImp.Print(bytes);
+            Assert.Equal(expected, BigInteger.Abs(original));
         }
     }
 }
