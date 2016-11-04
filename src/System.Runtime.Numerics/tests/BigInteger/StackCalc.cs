@@ -2,12 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections;
 using System.Collections.Generic;
 using Xunit;
 
 namespace System.Numerics.Tests
 {
-    public class StackCalc
+    public class StackCalc : IEnumerable<Tuple<BigInteger, BigInteger>>
     {
         public string[] input;
         public Stack<BigInteger> myCalc;
@@ -239,7 +240,7 @@ namespace System.Numerics.Tests
                     throw new ArgumentException(String.Format("Invalid operation found: {0}", op));
             }
         }
-        
+
         private void SetSNOutCheck(BigInteger value)
         {
             _snOut = value;
@@ -256,6 +257,55 @@ namespace System.Numerics.Tests
         private static String Print(byte[] bytes)
         {
            return MyBigIntImp.PrintFormatX(bytes);
+        }
+
+        public IEnumerator<Tuple<BigInteger, BigInteger>> GetEnumerator()
+        {
+            return new StackCalculatorEnumerator(this);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        private class StackCalculatorEnumerator : IEnumerator<Tuple<BigInteger, BigInteger>>
+        {
+            private StackCalc _stackCalc;
+
+            public StackCalculatorEnumerator(StackCalc stackCalc)
+            {
+                this._stackCalc = stackCalc;
+            }
+
+            public Tuple<BigInteger, BigInteger> Current
+            {
+                get
+                {
+                    return new Tuple<BigInteger, BigInteger>(_stackCalc.snCalc.Peek(), _stackCalc.myCalc.Peek());
+                }
+            }
+
+            object IEnumerator.Current
+            {
+                get
+                {
+                    return Current;
+                }
+            }
+
+            public void Dispose()
+            {
+            }
+
+            public bool MoveNext()
+            {
+                return _stackCalc.DoNextOperation();
+            }
+
+            public void Reset()
+            {
+            }
         }
     }
 }
