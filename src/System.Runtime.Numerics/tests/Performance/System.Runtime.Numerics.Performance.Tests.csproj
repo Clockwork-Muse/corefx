@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <OutputType>Library</OutputType>
+    <AssemblyName>System.Runtime.Numerics.Performance.Tests</AssemblyName>
+    <RootNamespace>System.Numerics.Tests</RootNamespace>
+    <IncludePerformanceTests>true</IncludePerformanceTests>
+    <NugetTargetMoniker>.NETStandard,Version=v1.7</NugetTargetMoniker>
+    <ProjectGuid>{BCC01A57-8371-402B-A315-AF057F1DBBFB}</ProjectGuid>
+  </PropertyGroup>
+  <!-- Default configurations to help VS understand the configurations -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' " />
+  <ItemGroup>
+    <ProjectReference Include="..\..\pkg\System.Runtime.Numerics.pkgproj">
+      <Project>{d2c99d27-0bef-4319-adb3-05cbeba8f69b}</Project>
+      <Name>System.Runtime.Numerics</Name>
+      <Private>true</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Perf.BigInteger.cs" />
+    <Compile Include="$(CommonTestPath)\System\PerfUtils.cs">
+      <Link>Common\System\PerfUtils.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+</Project>

@@ -10,12 +10,12 @@ using Xunit.Abstractions;
 
 namespace System.Numerics.Tests
 {
-    public class PerformanceTests
+    public class Perf_BigInteger
     {
         private readonly Random _random;
         private readonly ITestOutputHelper _output;
 
-        public PerformanceTests(ITestOutputHelper output)
+        public Perf_BigInteger(ITestOutputHelper output)
         {
             _random = new Random(1138);
             _output = output;
