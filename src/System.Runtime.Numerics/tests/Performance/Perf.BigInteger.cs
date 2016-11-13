@@ -2,23 +2,41 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Diagnostics;
-using Xunit;
 using Microsoft.Xunit.Performance;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace System.Numerics.Tests
 {
-    public class Perf_BigInteger
+    public static class Perf_BigInteger
     {
-        private readonly Random _random;
-        private readonly ITestOutputHelper _output;
+        private const int repeatCount = 10000;
 
-        public Perf_BigInteger(ITestOutputHelper output)
+        [Benchmark]
+        [InlineData(16, 16)]
+        public static void Add(int leftBits, int rightBits)
         {
-            _random = new Random(1138);
-            _output = output;
+            // Initialize with bits to get repeatable results.
+            Random random = new Random(leftBits ^ rightBits);
+
+            foreach (var iteration in Benchmark.Iterations)
+            {
+                BigInteger left = CreateRandomBigInteger(random, leftBits);
+                BigInteger right = CreateRandomBigInteger(random, rightBits);
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < repeatCount; i++)
+                    {
+                        BigInteger.Add(left, right);
+                    }
+                }
+            }
+        }
+
+        [Benchmark]
+        public static void Add2()
+        {
+            throw new InvalidOperationException();
         }
 
         [Benchmark] //PerformanceTest
@@ -195,6 +213,26 @@ namespace System.Numerics.Tests
             while (result.IsZero)
             {
                 _random.NextBytes(value);
+
+                // ensure actual bit count (remaining bits not set)
+                // ensure positive value (highest-order bit not set)
+                value[value.Length - 1] &= (byte)(0xFF >> 8 - bits % 8);
+
+                result = new BigInteger(value);
+            }
+
+            return result;
+        }
+        */
+
+        private static BigInteger CreateRandomBigInteger(Random random, int bits)
+        {
+            byte[] value = new byte[(bits + 8) / 8];
+            BigInteger result = BigInteger.Zero;
+
+            while (result.IsZero)
+            {
+                random.NextBytes(value);
 
                 // ensure actual bit count (remaining bits not set)
                 // ensure positive value (highest-order bit not set)
