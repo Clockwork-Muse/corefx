@@ -48,7 +48,7 @@
     <Compile Include="BigInteger\Properties\PropertiesTests.cs" />
     <Compile Include="BigInteger\Properties\SignTests.cs" />
     <Compile Include="BigInteger\Driver.cs" />
-    <Compile Include="BigInteger\MyBigInt.cs" />
+    <Compile Include="BigInteger\BigIntegerCalculator.cs" />
     <Compile Include="BigInteger\StackCalc.cs" />
     <Compile Include="BigInteger\Utils.cs" />
     <Compile Include="ComplexTests.cs" />

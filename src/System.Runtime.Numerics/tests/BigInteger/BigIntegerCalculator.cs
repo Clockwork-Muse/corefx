@@ -7,6 +7,11 @@ using System.Collections.Generic;
 
 namespace System.Numerics.Tests
 {
+    public static class BigIntegerCalculator
+    {
+
+    }
+
     public static class MyBigIntImp
     {
         public static BigInteger outParam = 0;
