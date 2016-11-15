@@ -4,12 +4,93 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace System.Numerics.Tests
 {
     public static class BigIntegerCalculator
     {
+        public static byte[] From(long value)
+        {
+            int length = (value == 0 ? 1 : value == long.MinValue ? 8 : (int)Math.Log(Math.Abs(value), byte.MaxValue + 1) + 1);
+            byte[] data = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                data[i] = (byte)((value >> (i * 8)) & 0xff);
+            }
 
+            if ((value > 0 && data[length - 1] >> 7 == 1) || (value < 0 && data[length - 1] >> 7 == 0))
+            {
+                Array.Resize(ref data, length + 1);
+                data[length] = (byte)(value < 0 ? 0xff : 0x00);
+            }
+            return data;
+        }
+
+        public static byte[] From(ulong value)
+        {
+            int length = (value == 0 ? 1 : value == ulong.MaxValue ? 8 : (int)Math.Log(value, byte.MaxValue + 1) + 1);
+            byte[] data = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                data[i] = (byte)((value >> (i * 8)) & 0xff);
+            }
+
+            if (data[length - 1] >> 7 == 1)
+            {
+                Array.Resize(ref data, length + 1);
+                data[length] = 0x00;
+            }
+            return data;
+        }
+
+        public static byte[] From(double value)
+        {
+            bool negative = value < 0;
+            value = Math.Truncate(value);
+
+            int length = value == 0 ? 1 : (int)Math.Log(Math.Abs(value), byte.MaxValue + 1) + 1;
+            byte[] data = new byte[length];
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)Math.IEEERemainder(value, byte.MaxValue + 1);
+                value = Math.Floor(value / (byte.MaxValue + 1));
+            }
+
+            if ((!negative && data[length - 1] >> 7 == 1) || (negative && data[length - 1] >> 7 == 0))
+            {
+                Array.Resize(ref data, length + 1);
+                data[length] = (byte)(negative ? 0xff : 0x00);
+            }
+            return data;
+        }
+
+        public static byte[] From(decimal value)
+        {
+            if (value == decimal.MaxValue)
+            {
+                return Enumerable.Repeat((byte)0xff, 12).Concat(new byte[] { 0x00 }).ToArray();
+            }
+
+            bool negative = value < 0;
+            value = Math.Truncate(value);
+
+            List<byte> data = new List<byte>();
+
+            while (value != 0 && value != -1)
+            {
+                byte remainder = (byte)(Math.Abs(value) % (byte.MaxValue + 1));
+                data.Add(negative ? (byte)((~(remainder - 1)) & 0xff) : remainder);
+                value = Math.Floor(value / (byte.MaxValue + 1));
+            }
+
+            if (!data.Any() || (!negative && data.Last() >> 7 == 1) || (negative && data.Last() >> 7 == 0))
+            {
+                data.Add((byte)(negative ? 0xff : 0x00));
+            }
+            return data.ToArray();
+        }
     }
 
     public static class MyBigIntImp
