@@ -369,8 +369,7 @@ namespace System.Numerics.Tests
 
             for (int i = 0; i < s_samples; i++)
             {
-                byte[] buffer = new byte[1];
-                random.NextBytes(buffer);
+                byte[] buffer = BigIntegerCalculator.FromRandomData(1, random);
                 yield return new object[] { buffer, buffer };
             }
 
@@ -409,8 +408,7 @@ namespace System.Numerics.Tests
             // Array with a lot of leading zeros
             for (int i = 0; i < s_samples; i++)
             {
-                byte[] buffer = new byte[4];
-                random.NextBytes(buffer);
+                byte[] buffer = BigIntegerCalculator.FromRandomData(4, random);
 
                 byte[] source = new byte[]
                 {
@@ -428,7 +426,7 @@ namespace System.Numerics.Tests
 
                 // If the high bit was set, we need to keep the positive value by adding an additional byte.
                 byte[] expected =
-                    (buffer[3] >> 7 == 1 ?
+                    (buffer.IsNegative() ?
                         new byte[] {
                             buffer[0],
                             buffer[1],
@@ -450,9 +448,8 @@ namespace System.Numerics.Tests
             {
                 for (int i = 0; i < s_samples; i++)
                 {
-                    byte[] data = new byte[size];
-                    random.NextBytes(data);
-                    bool negative = data[size - 1] >> 7 == 1;
+                    byte[] data = BigIntegerCalculator.FromRandomData(size, random);
+                    bool negative = data.IsNegative();
                     // Unmodified
                     yield return new object[] { data, data };
 
@@ -469,8 +466,7 @@ namespace System.Numerics.Tests
             // Random > UInt64
             for (int i = 0; i < s_samples; i++)
             {
-                byte[] buffer = new byte[random.Next(0, 1024)];
-                random.NextBytes(buffer);
+                byte[] buffer = BigIntegerCalculator.FromRandomData(random: random);
                 yield return new object[] { buffer, buffer };
             }
         }
@@ -498,8 +494,7 @@ namespace System.Numerics.Tests
             // Array is _really_ large
             for (int i = 0; i < s_samples; i++)
             {
-                byte[] buffer = new byte[random.Next(16384, 2097152)];
-                random.NextBytes(buffer);
+                byte[] buffer = BigIntegerCalculator.FromRandomData(random.Next(16384, 2097152), random);
                 yield return new object[] { buffer, buffer };
             }
         }

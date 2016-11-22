@@ -19,7 +19,7 @@ namespace System.Numerics.Tests
                 data[i] = (byte)((value >> (i * 8)) & 0xff);
             }
 
-            if ((value > 0 && data[length - 1] >> 7 == 1) || (value < 0 && data[length - 1] >> 7 == 0))
+            if ((value < 0) != data.IsNegative())
             {
                 Array.Resize(ref data, length + 1);
                 data[length] = (byte)(value < 0 ? 0xff : 0x00);
@@ -36,10 +36,10 @@ namespace System.Numerics.Tests
                 data[i] = (byte)((value >> (i * 8)) & 0xff);
             }
 
-            if (data[length - 1] >> 7 == 1)
+            if (data.IsNegative())
             {
                 Array.Resize(ref data, length + 1);
-                data[length] = 0x00;
+                data[data.Length - 1] = 0x00;
             }
             return data;
         }
@@ -58,7 +58,7 @@ namespace System.Numerics.Tests
                 value = Math.Floor(value / (byte.MaxValue + 1));
             }
 
-            if ((!negative && data[length - 1] >> 7 == 1) || (negative && data[length - 1] >> 7 == 0))
+            if (negative != data.IsNegative())
             {
                 Array.Resize(ref data, length + 1);
                 data[length] = (byte)(negative ? 0xff : 0x00);
@@ -85,16 +85,27 @@ namespace System.Numerics.Tests
                 value = Math.Floor(value / (byte.MaxValue + 1));
             }
 
-            if (!data.Any() || (!negative && data.Last() >> 7 == 1) || (negative && data.Last() >> 7 == 0))
+            if (!data.Any() || (negative != (data.Last() >> 7 == 1)))
             {
                 data.Add((byte)(negative ? 0xff : 0x00));
             }
             return data.ToArray();
         }
 
+        public static byte[] FromRandomData(int bytes = -1, Random random = null)
+        {
+            random = random ?? new Random(100);
+
+            byte[] data = new byte[bytes < 1 ? random.Next(1, 1024) : bytes];
+            random.NextBytes(data);
+            Compress(data);
+
+            return data;
+        }
+
         public static byte[] Abs(this byte[] value)
         {
-            if (value[value.Length - 1] >> 7 == 1)
+            if (value.IsNegative())
             {
                 return Negate(value);
             }
@@ -103,7 +114,7 @@ namespace System.Numerics.Tests
 
         public static byte[] Negate(this byte[] value)
         {
-            bool negative = value[value.Length - 1] >> 7 == 1;
+            bool negative = value.IsNegative();
             byte[] bNew = new byte[value.Length];
 
             bool carry = false;
@@ -111,20 +122,80 @@ namespace System.Numerics.Tests
             for (int i = 0; i < value.Length; i++)
             {
                 int b = (value[i] ^ 0xff) + (i == 0 || carry ? 1 : 0);
-                if (b > byte.MaxValue)
-                {
-                    b -= byte.MaxValue + 1;
-                    carry = true;
-                }
-                bNew[i] = (byte)b;
+                carry = b > byte.MaxValue;
+                bNew[i] = (byte)(b % (byte.MaxValue + 1));
             }
 
-            if ((negative && bNew[bNew.Length - 1] >> 7 == 1) || (!negative && bNew[bNew.Length - 1] >> 7 == 0))
+            if (negative == bNew.IsNegative())
             {
                 Array.Resize(ref bNew, bNew.Length + 1);
                 bNew[bNew.Length - 1] = (byte)(negative ? 0x00 : 0xff);
             }
             return bNew;
+        }
+
+        public static bool IsZero(this byte[] value)
+        {
+            // A well-formed zero array should only be one byte, though.
+            return value.All(b => b == 0x00);
+        }
+
+        public static bool IsNegative(this byte[] value)
+        {
+            return value[value.Length - 1] >> 7 == 1;
+        }
+
+        public static int CompareTo(this byte[] left, byte[] right)
+        {
+            // Simple case - check last byte for sign.
+            bool negative = left.IsNegative();
+            if (negative != right.IsNegative())
+            {
+                return negative ? -1 : 1;
+            }
+
+            // Check which one takes more data, the longer one is the "more ..." whatever one.
+            // Note that this assumes the data array to be well formed (properly compressed).
+            int lengthDifference = left.Length - right.Length;
+            if (lengthDifference != 0)
+            {
+                return negative ? -lengthDifference : lengthDifference;
+            }
+
+            // Otherwise, work backwards, highest byte with a difference
+            for (int i = left.Length - 1; i >= 0; i--)
+            {
+                int byteDifference = left[i] - right[i];
+                if (byteDifference != 0)
+                {
+                    return byteDifference;
+                }
+            }
+
+            return 0;
+        }
+
+        private static byte GetNormalizedExtension(this byte[] value, int index)
+        {
+            return index < value.Length ? value[index]
+                : (byte)(value[value.Length - 1] >> 7 == 1 ? 0xff : 0x00);
+        }
+
+        // Compress/shorten array to remove set/unset bytes.
+        private static void Compress(byte[] value)
+        {
+            byte lastVal = value[value.Length - 1];
+            if (lastVal != 0xff && lastVal != 0x00)
+            {
+                return;
+            }
+
+            int last = value.Length - 1;
+            while (last > 0 && value[last] == lastVal && value[last - 1] >> 7 == lastVal >> 7)
+            {
+                last--;
+            }
+            Array.Resize(ref value, last + 1);
         }
     }
 
