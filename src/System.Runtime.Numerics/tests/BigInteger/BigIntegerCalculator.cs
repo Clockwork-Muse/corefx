@@ -112,6 +112,52 @@ namespace System.Numerics.Tests
             return value;
         }
 
+        public static byte[] Add(this byte[] left, byte[] right)
+        {
+            return AddInternal((byte[])left.Clone(), right);
+        }
+
+        public static byte[] AddInternal(byte[] left, byte[] right)
+        {
+            bool leftNegative = left.IsNegative();
+            bool rightNegative = right.IsNegative();
+            if (left.Length < right.Length)
+            {
+                int original = left.Length;
+                Array.Resize(ref left, right.Length);
+                if (leftNegative)
+                {
+                    for (int i = original; i < left.Length; i++)
+                    {
+                        left[i] = 0xff;
+                    }
+                }
+            }
+
+            bool carry = false;
+
+            for (int i = 0; i < left.Length; i++)
+            {
+                byte l = left[i];
+                byte r = right.GetNormalizedExtension(i);
+
+                int b = (l + r) + (carry ? 1 : 0);
+                carry = b > byte.MaxValue;
+                left[i] = (byte)(b % (byte.MaxValue + 1));
+            }
+
+            bool newNegative = left.IsNegative();
+            bool negativeMismatch = leftNegative == rightNegative && newNegative != leftNegative;
+            if (negativeMismatch)
+            {
+                Array.Resize(ref left, left.Length + 1);
+                left[left.Length - 1] = (byte)(negativeMismatch && newNegative ? 0x00 : 0xff);
+            }
+            Compress(left);
+
+            return left;
+        }
+
         public static byte[] Negate(this byte[] value)
         {
             bool negative = value.IsNegative();
