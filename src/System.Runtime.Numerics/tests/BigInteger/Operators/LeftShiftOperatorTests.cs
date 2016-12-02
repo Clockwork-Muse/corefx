@@ -2,196 +2,74 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Numerics.Tests
 {
     public static class LeftShiftOperatorTests
     {
-        private static int s_samples = 10;
-        private static Random s_random = new Random(100);
+        private const int s_samples = 10;
 
-        [Fact]
-        public static void RunLeftShiftTests()
+        public static IEnumerable<object[]> LeftShift_Data()
         {
-            byte[] tempByteArray1 = new byte[0];
-            byte[] tempByteArray2 = new byte[0];
+            Random random = new Random(100);
 
-            // LeftShift Method - Large BigIntegers - large + Shift
             for (int i = 0; i < s_samples; i++)
             {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = GetRandomPosByteArray(s_random, 2);
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Large BigIntegers - small + Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = new byte[] { (byte)s_random.Next(1, 32) };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Large BigIntegers - 32 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = new byte[] { (byte)32 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-            // LeftShift Method - Large BigIntegers - large - Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = GetRandomNegByteArray(s_random, 2);
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Large BigIntegers - small - Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = new byte[] { unchecked((byte)s_random.Next(-31, 0)) };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Large BigIntegers - -32 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = new byte[] { (byte)0xe0 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Large BigIntegers - 0 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random);
-                tempByteArray2 = new byte[] { (byte)0 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - large + Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = GetRandomPosByteArray(s_random, 2);
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - small + Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = new byte[] { (byte)s_random.Next(1, 32) };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - 32 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = new byte[] { (byte)32 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-            // LeftShift Method - Small BigIntegers - large - Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = GetRandomNegByteArray(s_random, 2);
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - small - Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = new byte[] { unchecked((byte)s_random.Next(-31, 0)) };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - -32 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = new byte[] { (byte)0xe0 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Small BigIntegers - 0 bit Shift
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomByteArray(s_random, 2);
-                tempByteArray2 = new byte[] { (byte)0 };
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Positive BigIntegers - Shift to 0
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomPosByteArray(s_random, 100);
-                tempByteArray2 = BitConverter.GetBytes(s_random.Next(-1000, -8 * tempByteArray1.Length));
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
-            }
-
-            // LeftShift Method - Negative BigIntegers - Shift to -1
-            for (int i = 0; i < s_samples; i++)
-            {
-                tempByteArray1 = GetRandomNegByteArray(s_random, 100);
-                tempByteArray2 = BitConverter.GetBytes(s_random.Next(-1000, -8 * tempByteArray1.Length));
-                VerifyLeftShiftString(Print(tempByteArray2) + Print(tempByteArray1) + "b<<");
+                foreach (int shift in new[] { 0, 32, -32, 32 * 7, random.Next(ushort.MaxValue), random.Next(1, 32), random.Next(-ushort.MaxValue, 0), random.Next(-31, 0) })
+                {
+                    byte[] original = BigIntegerCalculator.FromRandomData(random: random);
+                    yield return new object[] { original, shift, original.ShiftLeft(shift) };
+                    original = BigIntegerCalculator.FromRandomData(bytes: 2, random: random);
+                    yield return new object[] { original, shift, original.ShiftLeft(shift) };
+                }
             }
         }
 
-        private static void VerifyLeftShiftString(string opstring)
+        public static IEnumerable<object[]> LeftShiftToZero_Data()
         {
-            StackCalc sc = new StackCalc(opstring);
-            while (sc.DoNextOperation())
+            Random random = new Random(100);
+
+            // The chance of getting a positive or negative array is 50/50,
+            // assuming the high bit is set independently.
+            for (int i = 0; i < 2 * s_samples; i++)
             {
-                Assert.Equal(sc.snCalc.Peek().ToString(), sc.myCalc.Peek().ToString());
+                byte[] original = BigIntegerCalculator.FromRandomData(bytes: 100, random: random);
+                yield return new object[] { original, -original.GetHighestSetBit(), new byte[] { 0x00 } };
+                yield return new object[] { original, random.Next(-256, -1) - original.GetHighestSetBit(), new byte[] { 0x00 } };
             }
         }
 
-        private static byte[] GetRandomByteArray(Random random)
+        public static IEnumerable<object[]> LeftShiftToNegativeOne_Data()
         {
-            return GetRandomByteArray(random, random.Next(0, 1024));
-        }
+            Random random = new Random(100);
 
-        private static byte[] GetRandomByteArray(Random random, int size)
-        {
-            return MyBigIntImp.GetRandomByteArray(random, size);
-        }
-
-        private static Byte[] GetRandomPosByteArray(Random random, int size)
-        {
-            byte[] value = new byte[size];
-
-            for (int i = 0; i < value.Length; ++i)
+            for (int i = 0; i < s_samples; i++)
             {
-                value[i] = (byte)random.Next(0, 256);
+                byte[] original = BigIntegerCalculator.FromRandomData(bytes: 100, random: random, criteria: data => data.IsNegative());
+                yield return new object[] { original, -(original.Length * 8 - 1), new byte[] { 0xff } };
             }
-            value[value.Length - 1] &= 0x7F;
-
-            return value;
         }
 
-        private static Byte[] GetRandomNegByteArray(Random random, int size)
+        public static IEnumerable<object[]> LeftShift_D()
         {
-            byte[] value = new byte[size];
-
-            for (int i = 0; i < value.Length; ++i)
-            {
-                value[i] = (byte)random.Next(0, 256);
-            }
-            value[value.Length - 1] |= 0x80;
-
-            return value;
+            yield return new object[] { BigIntegerCalculator.From(int.MaxValue), 1, BigIntegerCalculator.From((long)int.MaxValue << 1) };
+            yield return new object[] { BigIntegerCalculator.From(int.MaxValue), -1, BigIntegerCalculator.From((long)int.MaxValue >> 1) };
+            yield return new object[] { BigIntegerCalculator.From(int.MaxValue), -8, BigIntegerCalculator.From((long)int.MaxValue >> 8) };
+            yield return new object[] { BigIntegerCalculator.From(int.MaxValue), -31, BigIntegerCalculator.From((long)int.MaxValue >> 31) };
         }
 
-        private static String Print(byte[] bytes)
+        [Theory]
+        [MemberData(nameof(LeftShift_Data))]
+        // [MemberData(nameof(LeftShiftToZero_Data))]
+        // [MemberData(nameof(LeftShiftToNegativeOne_Data))]
+        public static void LeftShiftTest(byte[] original, int bits, byte[] expected)
         {
-            return MyBigIntImp.Print(bytes);
+            BigInteger orig = new BigInteger(original);
+            BigInteger exp = new BigInteger(expected);
+            Assert.Equal(expected, original.ShiftLeft(bits));
+            Assert.Equal(exp, orig << bits);
         }
     }
 }

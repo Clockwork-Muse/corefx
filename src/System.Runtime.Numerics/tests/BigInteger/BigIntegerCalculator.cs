@@ -92,13 +92,19 @@ namespace System.Numerics.Tests
             return data.ToArray();
         }
 
-        public static byte[] FromRandomData(int bytes = -1, Random random = null)
+        public static byte[] FromRandomData(int bytes = -1, Random random = null, Func<byte[], bool> criteria = null)
         {
             random = random ?? new Random(100);
+            bytes = bytes < 1 ? random.Next(1, 1024) : bytes;
+            criteria = criteria ?? (ignored => true);
 
-            byte[] data = new byte[bytes < 1 ? random.Next(1, 1024) : bytes];
-            random.NextBytes(data);
-            Compress(data);
+            byte[] data = new byte[bytes];
+            do
+            {
+                Array.Resize(ref data, bytes);
+                random.NextBytes(data);
+                Compress(data);
+            } while (!criteria(data));
 
             return data;
         }
@@ -180,6 +186,156 @@ namespace System.Numerics.Tests
             return bNew;
         }
 
+        public static byte[] ShiftLeft(this byte[] value, int bits)
+        {
+            if (bits == 0)
+            {
+                return value;
+            }
+            else if (bits < 0)
+            {
+                return ShiftRight(value, Math.Abs(bits));
+            }
+            else
+            {
+                return ShiftLeftInternal((byte[])value.Clone(), bits);
+            }
+        }
+
+        private static byte[] ShiftLeftInternal(this byte[] value, int bitsToShift)
+        {
+            int bytesToShift = bitsToShift / 8;
+            bitsToShift %= 8;
+            // Highest bit occurs every 8 bits, so if highest+shift is a multiple of 8 the new value will be negative.
+            bool negativeChange = value.IsNegative() != ((value.GetHighestSetBit() + bitsToShift) % 8 != 0);
+            bool negative = value.IsNegative();
+
+            int originalSize = value.Length;
+            Array.Resize(ref value, originalSize + bytesToShift + (negativeChange ? 1 : 0));
+            Array.Copy(value, 0, value, bytesToShift, originalSize);
+
+            if (bitsToShift == 0)
+            {
+                return value;
+            }
+
+            for (int i = originalSize + bytesToShift - 1; i > bytesToShift; i--)
+            {
+                value[i] = (byte)(value[i] << bitsToShift);
+                value[i] |= (byte)(value[i - 1] >> 8 - bitsToShift);
+            }
+            value[bytesToShift] = (byte)(value[0] << bitsToShift);
+
+            if (negativeChange)
+            {
+                value[value.Length - 1] = (byte)(negative ? 0xff : 0x00);
+            }
+            return value;
+        }
+
+        public static byte[] ShiftRight(this byte[] value, int bits)
+        {
+            if (bits == 0)
+            {
+                return value;
+            }
+            else if (bits < 0)
+            {
+                return ShiftLeft(value, Math.Abs(bits));
+            }
+            else
+            {
+                if (bits / 8 >= value.Length)
+                {
+                    return new byte[] { 0x00 };
+                }
+                return ShiftRightInternal((byte[])value.Clone(), bits);
+            }
+        }
+
+        private static byte[] ShiftRightInternal(this byte[] value, int bitsToShift)
+        {
+            int bytesToShift = bitsToShift / 8;
+            bitsToShift %= 8;
+
+            if (bytesToShift >= value.Length)
+            {
+                Array.Resize(ref value, 1);
+                value[0] = 0x00;
+                return value;
+            }
+
+            // Highest bit occurs every 8 bits, so if highest-shift is a multiple of 8 the new value will be negative.
+            bool negativeChange = value.IsNegative() != ((value.GetHighestSetBit() - bitsToShift) % 8 != 0);
+            bool negative = value.IsNegative();
+
+            Array.Copy(value, bytesToShift, value, 0, value.Length - bytesToShift);
+
+            if (bitsToShift != 0)
+            {
+                for (int i = 0; i < value.Length - (bytesToShift + 1); i++)
+                {
+                    value[i] = (byte)(value[i] >> bitsToShift);
+                    value[i] |= (byte)(value[i + 1] << 8 - bitsToShift);
+                }
+                value[value.Length - (bytesToShift + 1)] = (byte)(value[value.Length - 1] >> bitsToShift);
+            }
+
+            Array.Resize(ref value, value.Length - bytesToShift + (negativeChange ? 1 : 0));
+            if (negativeChange)
+            {
+                value[value.Length - 1] = (byte)(negative ? 0xff : 0x00);
+            }
+
+            return value;
+        }
+
+        public static byte[] Divide(this byte[] dividend, byte[] divisor)
+        {
+            bool dividendNegative = dividend.IsNegative();
+            bool divisorNegative = divisor.IsNegative();
+            bool quotientNegative = (dividendNegative == divisorNegative);
+
+            dividend = dividendNegative ? dividend.Abs() : (byte[])dividend.Clone();
+            divisor = divisorNegative ? divisor.Abs() : (byte[])divisor.Clone();
+
+            int shift = dividend.GetHighestSetBit() - divisor.GetHighestSetBit();
+
+            if (shift < 0)
+            {
+                return new byte[] { 0x00 };
+            }
+
+            byte[] result = new byte[(shift - 7) / 8 + 1];
+
+            //ShiftLeftGrow(divisor, shift);
+            /*
+            while (shift >= 0)
+            {
+                bytes2 = Negate(bytes2);
+                bytes1 = Add(bytes1, bytes2);
+                bytes2 = Negate(bytes2);
+                if (bytes1[bytes1.Count - 1] < 128)
+                {
+                    br[shift] = true;
+                }
+                else
+                {
+                    bytes1 = Add(bytes1, bytes2);
+                }
+                bytes2 = ShiftRight(bytes2);
+                shift--;
+            }
+            List<byte> result = GetBytes(br);
+
+            if (!qPos)
+            {
+                result = Negate(result);
+            }
+            */
+            return result;
+        }
+
         public static bool IsZero(this byte[] value)
         {
             // A well-formed zero array should only be one byte, though.
@@ -243,6 +399,23 @@ namespace System.Numerics.Tests
             }
             Array.Resize(ref value, last + 1);
         }
+
+        /// 1-indexed
+        public static int GetHighestSetBit(this byte[] value)
+        {
+            // The highest set bit should be in the last byte,
+            // or the last bit of the previous one, if marked positive.
+            byte top = value[value.Length - 1];
+            int previous = (value.Length - 1) * 8;
+            for (int i = 8; i >= 1; i--)
+            {
+                if ((top & (0x01 << i - 1)) != 0)
+                {
+                    return previous + i;
+                }
+            }
+            return previous;
+        }
     }
 
     public static class MyBigIntImp
@@ -267,8 +440,10 @@ namespace System.Numerics.Tests
                         return new BigInteger(-1);
                     }
                     return new BigInteger(1);
+
                 case "u~":
                     return new BigInteger(Not(bytes1).ToArray());
+
                 case "uLog10":
                     factor = unchecked((int)BigInteger.Log(num1, 10));
                     if (factor > 100)
@@ -287,6 +462,7 @@ namespace System.Numerics.Tests
                         }
                     }
                     return ApproximateBigInteger(result);
+
                 case "uLog":
                     factor = unchecked((int)BigInteger.Log(num1, 10));
                     if (factor > 100)
@@ -305,24 +481,31 @@ namespace System.Numerics.Tests
                         }
                     }
                     return ApproximateBigInteger(result);
+
                 case "uAbs":
                     if ((bytes1[bytes1.Count - 1] & 0x80) != 0)
                     {
                         bytes1 = Negate(bytes1);
                     }
                     return new BigInteger(bytes1.ToArray());
+
                 case "u--":
                     return new BigInteger(Add(bytes1, new List<byte>(new byte[] { 0xff })).ToArray());
+
                 case "u++":
                     return new BigInteger(Add(bytes1, new List<byte>(new byte[] { 1 })).ToArray());
+
                 case "uNegate":
                 case "u-":
                     return new BigInteger(Negate(bytes1).ToArray());
+
                 case "u+":
                     return num1;
+
                 case "uMultiply":
                 case "u*":
                     return new BigInteger(Multiply(bytes1, bytes1).ToArray());
+
                 default:
                     throw new ArgumentException(String.Format("Invalid operation found: {0}", op));
             }
@@ -337,41 +520,55 @@ namespace System.Numerics.Tests
             {
                 case "bMin":
                     return new BigInteger(Negate(Max(Negate(bytes1), Negate(bytes2))).ToArray());
+
                 case "bMax":
                     return new BigInteger(Max(bytes1, bytes2).ToArray());
+
                 case "b>>":
                     return new BigInteger(ShiftLeft(bytes1, Negate(bytes2)).ToArray());
+
                 case "b<<":
                     return new BigInteger(ShiftLeft(bytes1, bytes2).ToArray());
+
                 case "b^":
                     return new BigInteger(Xor(bytes1, bytes2).ToArray());
+
                 case "b|":
                     return new BigInteger(Or(bytes1, bytes2).ToArray());
+
                 case "b&":
                     return new BigInteger(And(bytes1, bytes2).ToArray());
+
                 case "bLog":
                     return ApproximateBigInteger(Math.Log((double)num1, (double)num2));
+
                 case "bGCD":
                     return new BigInteger(GCD(bytes1, bytes2).ToArray());
+
                 case "bPow":
                     int arg2 = (int)num2;
                     bytes2 = new List<byte>(new BigInteger(arg2).ToByteArray());
                     return new BigInteger(Pow(bytes1, bytes2).ToArray());
+
                 case "bDivRem":
                     BigInteger ret = new BigInteger(Divide(bytes1, bytes2).ToArray());
                     bytes1 = new List<byte>(num1.ToByteArray());
                     bytes2 = new List<byte>(num2.ToByteArray());
                     outParam = new BigInteger(Remainder(bytes1, bytes2).ToArray());
                     return ret;
+
                 case "bRemainder":
                 case "b%":
                     return new BigInteger(Remainder(bytes1, bytes2).ToArray());
+
                 case "bDivide":
                 case "b/":
                     return new BigInteger(Divide(bytes1, bytes2).ToArray());
+
                 case "bMultiply":
                 case "b*":
                     return new BigInteger(Multiply(bytes1, bytes2).ToArray());
+
                 case "bSubtract":
                 case "b-":
                     bytes2 = Negate(bytes2);
@@ -379,6 +576,7 @@ namespace System.Numerics.Tests
                 case "bAdd":
                 case "b+":
                     return new BigInteger(Add(bytes1, bytes2).ToArray());
+
                 default:
                     throw new ArgumentException(String.Format("Invalid operation found: {0}", op));
             }
@@ -559,7 +757,7 @@ namespace System.Numerics.Tests
                 }
             }
             int shift = ba11loc - ba21loc;
-            if (shift < 0) 
+            if (shift < 0)
             {
                 return new List<byte>(new byte[] { (byte)0 });
             }
@@ -603,7 +801,7 @@ namespace System.Numerics.Tests
 
             if (!numPos)
             {
-                bytes1 = Negate(bytes1); 
+                bytes1 = Negate(bytes1);
             }
             if (!denPos)
             {
@@ -936,9 +1134,9 @@ namespace System.Numerics.Tests
             {
                 byte newbyte = bytes[i];
 
-                if (newbyte > 127) 
+                if (newbyte > 127)
                 {
-                    newbyte -= 128; 
+                    newbyte -= 128;
                 }
                 newbyte = (byte)(newbyte * 2);
                 if ((i != 0) && (bytes[i - 1] >= 128))
@@ -1121,7 +1319,7 @@ namespace System.Numerics.Tests
             ret += "endmake ";
             return ret;
         }
-        
+
         public static String PrintFormatX(byte[] bytes)
         {
             string ret = String.Empty;
@@ -1158,7 +1356,7 @@ namespace System.Numerics.Tests
             }
             return true;
         }
-        
+
         public static byte[] GetNonZeroRandomByteArray(Random random, int size)
         {
             byte[] value = new byte[size];
@@ -1168,14 +1366,14 @@ namespace System.Numerics.Tests
             }
             return value;
         }
-        
+
         public static byte[] GetRandomByteArray(Random random, int size)
         {
             byte[] value = new byte[size];
             random.NextBytes(value);
             return value;
         }
-        
+
         public static BigInteger ApproximateBigInteger(double value)
         {
             //Special case values;
